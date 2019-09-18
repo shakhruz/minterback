@@ -16,28 +16,24 @@ const ContractScheme = new Schema({
         default: new Date
     },
     sell_amount: {
-        type: Double,
+        type: Number,
         required: ""
     },
     buy_amount: {
-        type: Double,
+        type: Number,
         required: ""
     },
     fromAddress: {
         type: String,
-        required: ""
     },
     toAddress: {
         type: String,
-        required: ""
     },
     incomingTx: {
         type: String,
-        required: ""
     },
     outgoingTx: {
         type: String,
-        required: ""
     },
     state: {
         type: String,

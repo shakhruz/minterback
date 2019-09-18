@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'; 
 import contract from '../models/contractModel.js';
 
+const minter = require('../minter.js')
+
 exports.getContract = (req, res) => {
     contract.findById(req.params.contractId, (err, contract) => {
         if (err) {
@@ -22,7 +24,12 @@ exports.getAllContracts = (req, res) => {
 };
 
 exports.createContract = (req, res) => {
-    const newContract = new note(req.body);
+    const newContract = new contract(req.body);
+
+    if (newContract.sell_coin == "BIP") {
+        console.log("generate BIP address to receive coins")
+        
+    }
 
     newContract.save((err, contract) => {
         if (err) {

@@ -1,4 +1,4 @@
-import notebook from '../controllers/contractController';
+import contract from '../controllers/contractController';
 
 export default (app) => {
     app.route('/contracts')

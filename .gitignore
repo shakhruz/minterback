@@ -63,5 +63,3 @@ typings/
 .next
 
 package-lock.json
-sqlite - Copy.db
-data.js
