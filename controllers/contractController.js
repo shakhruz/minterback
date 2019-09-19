@@ -5,6 +5,8 @@ const minter = require('../minter.js')
 const bcoin = require('../bcoin.js')
 const rates = require('../rates.js')
 
+const spread = 5 // % спрэда
+
 exports.getContract = (req, res) => {
     contractModel.findById(req.params.contractId, (err, contract) => {
         if (err) {
@@ -82,6 +84,10 @@ function completeContract(contract) {
         // отправляем BTC
         rates.getRates((btc_price, bip_price) => {
             contract.buy_amount = Math.trunc((contract.receivedCoins * bip_price / btc_price) * 100000000)
+            console.log("buy amount без спрэда: ", contract.buy_amount)
+            console.log("спрэд: ", (contract.buy_amount * spread / 100))
+            contract.buy_amount  = Math.trunc(contract.buy_amount - (contract.buy_amount * spread / 100))
+            console.log("buy amount с вычетом спрэда: ", contract.buy_amount)
             console.log(`надо отправить ${contract.buy_amount}sat на адрес ${contract.toAddress}`)
             contract.state = "sending"
             saveContract(contract)
