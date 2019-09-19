@@ -24,23 +24,29 @@ const ContractScheme = new Schema({
         required: ""
     },
     fromAddress: {
-        type: String,
+        type: String
+    },
+    receivingAddress: {
+        type: String
+    },
+    receivingPrivKey: {
+        type: String
     },
     toAddress: {
-        type: String,
+        type: String
     },
     incomingTx: {
-        type: String,
+        type: String
     },
     outgoingTx: {
-        type: String,
+        type: String
     },
     state: {
         type: String,
         default: "new"
     },
     hash: {
-        type: String,
+        type: String
     },
     fee_sat: {
         type: Number

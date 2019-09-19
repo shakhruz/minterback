@@ -1,21 +1,22 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
-
 import routes from './routes/index.js';
+var cors = require('cors')
 
 const app = express();
 
-/**
-    * Connect to the database
-    */
+var corsOptions = {
+    origin: 'http://localhost:8080',
+    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+}
 
+// Connect to the database
 mongoose.connect('mongodb://localhost');
 
-/**
-    * Middleware
-    */
+app.use(cors(corsOptions))
 
+// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
@@ -33,10 +34,6 @@ app.use((err, req, res, next) => {
     next();
 });
 
-/**
-    * Register the routes
-    */
-
+// Register the routes
 routes(app);
-
 export default app;
