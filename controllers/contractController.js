@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import contractModel from '../models/contractModel.js';
 
 const minter = require('../minter.js')
+const bcoin = require('../bcoin.js')
+const rates = require('../rates.js')
 
 exports.getContract = (req, res) => {
     contractModel.findById(req.params.contractId, (err, contract) => {
@@ -53,16 +55,15 @@ function processContract(contract) {
     minter.waitForBIPPayment(contract.receivingAddress, (trx) => {
         console.log("got BIP payment: ", trx)
         contract.receivedCoins = trx.data.value * 1000
-        // TODO сделать собственный расчет получаемых битков и текущего курса
-        // this.btc_to_send = this.bip_received / this.bip_btc_buy_price * 100000000 
         contract.state = "payment received"
         contract.fromAddress = trx.from
         contract.incomingTx = trx.hash
-        contractPaid(contract)
+        saveContract(contract)
+        completeContract(contract)    
     })
 }
 
-function contractPaid(contract) {
+function saveContract(contract) {
     console.log('contract paid: ', contract)
     contractModel.updateOne({_id: contract._id}, contract,
         (err, contract) => {
@@ -73,6 +74,33 @@ function contractPaid(contract) {
             console.log("completed updating contract: ", contract);
         }
     );
+}
+
+// Исполнить контракт
+function completeContract(contract) {
+    if (contract.buy_coin == "BTC") {
+        // отправляем BTC
+        rates.getRates((btc_price, bip_price) => {
+            contract.buy_amount = Math.trunc((contract.receivedCoins * bip_price / btc_price) * 100000000)
+            console.log(`надо отправить ${contract.buy_amount}sat на адрес ${contract.toAddress}`)
+            contract.state = "sending"
+            saveContract(contract)
+            bcoin.sendFromReserve(contract.buy_amount, contract.toAddress, (result, arg) => {
+                if (result) {
+                    console.log("successfuly sent bcoin: ", arg.hash)
+                    contract.state = "completed"
+                    contract.outgoingTx = arg.hash
+                    contract.fee_sat = arg.fee
+                } else {
+                    console.log("error sending bcoin: ", arg)
+                    contract.state = "error"
+                }
+                saveContract(contract)
+            })
+        })
+    } else {
+        console.log("не могу исполнить контракт, непотяно что покупать: ", contract.buy_coin)
+    }
 }
 
 exports.updateContract = (req, res) => {

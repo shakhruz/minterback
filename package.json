@@ -26,6 +26,9 @@
     "nodemon": "^1.19.2"
   },
   "dependencies": {
+    "bclient": "^0.1.7",
+    "bcoin": "^1.0.2",
+    "bitcoin-best-fee": "^0.1.1",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "express": "^4.17.1",
