@@ -1,4 +1,5 @@
-// const minterWallet = require('./minterhd.js') 
+// const minterWallet = require('./minterhd.js')
+const fetch = require('node-fetch') 
 const minterWallet = require('minterjs-wallet') 
 
 const minterApiUrl = 'https://explorer-api.apps.minter.network/api/'
@@ -10,6 +11,32 @@ exports.generateWallet = function () {
     const wallet = minterWallet.generateWallet()
     console.log("generated address:", wallet.getAddressString())    
     return {address: wallet.getAddressString(), priv_key: wallet.getPrivateKeyString()}
+}
+
+exports.waitForBIPPayment = function (address, callback) {
+    console.log("waiting for a payment on address " + address)
+    let tries = 60 * 60
+    let interval = setInterval(()=> {
+      console.log("checking trxs on address " + address)
+      fetch(`${bip_api_url}v1/addresses/${address}/transactions`)
+      .then(res => res.json())
+      .then(json => {
+          const data = json.data
+          if (data.length >0 ) {
+              console.log("есть транзакции: ", data.length)
+              for(let trx of data) {
+                if (trx.data.coin == "BIP" && trx.data.to == address) {
+                  console.log(`совпало: ${trx.data.value} ${trx.data.coin} fee: ${trx.fee} from: ${trx.from}  to ${trx.data.to}`)
+                  clearInterval(interval)
+                  callback(trx)
+                }
+              }
+          }
+      })
+  
+      tries -= 1
+      if (tries < 1) cancelInterval(interval)
+    }, 1000)    
 }
 
 const spread = 5 // % спрэда

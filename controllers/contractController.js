@@ -1,10 +1,10 @@
 import mongoose from 'mongoose'; 
-import contract from '../models/contractModel.js';
+import contractModel from '../models/contractModel.js';
 
 const minter = require('../minter.js')
 
 exports.getContract = (req, res) => {
-    contract.findById(req.params.contractId, (err, contract) => {
+    contractModel.findById(req.params.contractId, (err, contract) => {
         if (err) {
             res.send(err);
         }
@@ -14,7 +14,7 @@ exports.getContract = (req, res) => {
 };
 
 exports.getAllContracts = (req, res) => {
-    contract.find({}, (err, contracts) => {
+    contractModel.find({}, (err, contracts) => {
         if (err) {
             res.send(err);
         }
@@ -25,7 +25,7 @@ exports.getAllContracts = (req, res) => {
 
 exports.createContract = (req, res) => {
     console.log("got req: ", req)
-    const newContract = new contract(req.body);
+    const newContract = new contractModel(req.body);
     console.log("new contract: ", newContract)
 
     if (newContract.sell_coin == "BIP") {
@@ -33,6 +33,7 @@ exports.createContract = (req, res) => {
         const wallet = minter.generateWallet()
         newContract.receivingAddress = wallet.address
         newContract.receivingPrivKey = wallet.priv_key
+        newContract.state = "waiting for payment"
     }
 
     newContract.save((err, contract) => {
@@ -42,12 +43,42 @@ exports.createContract = (req, res) => {
 
         console.log("returning new contract: ", contract)
 
+        contract.receivingPrivKey = null // прячем ключ
         res.json(contract);
+        processContract(contract)
     });
 };
 
+function processContract(contract) {
+    minter.waitForBIPPayment(contract.receivingAddress, (trx) => {
+        console.log("got BIP payment: ", trx)
+        contract.receivedCoins = trx.data.value * 1000
+        // TODO сделать собственный расчет получаемых битков и текущего курса
+        // this.btc_to_send = this.bip_received / this.bip_btc_buy_price * 100000000 
+        contract.state = "payment received"
+        contract.fromAddress = trx.from
+        contractPaid(contract)
+    })
+}
+
+function contractPaid(contract) {
+    mongoose.set('useFindAndModify', false);
+    console.log('contract paid: ', contract)
+    contractModel.findOneAndUpdate({
+        _id: contract.contractId
+    }, contract,
+        (err, contract) => {
+            if (err) {
+                console.log(err);
+            }
+
+            console.log("completed updating contract: ", contract);
+        }
+    );
+}
+
 exports.updateContract = (req, res) => {
-    note.findOneAndUpdate({
+    contractModel.findOneAndUpdate({
         _id: req.params.contractId
     }, req.body,
         (err, contract) => {
@@ -60,7 +91,7 @@ exports.updateContract = (req, res) => {
 };
 
 exports.deleteContract = (req, res) => {
-    contract.remove({
+    contractModel.remove({
         _id: req.params.contractId
     }, (err) => {
         if (err) {

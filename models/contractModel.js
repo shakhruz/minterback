@@ -32,6 +32,9 @@ const ContractScheme = new Schema({
     receivingPrivKey: {
         type: String
     },
+    receivedCoins: {
+        type: Number
+    },
     toAddress: {
         type: String
     },

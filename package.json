@@ -30,6 +30,7 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "minterjs-wallet": "^4.0.1",
-    "mongoose": "^5.7.1"
+    "mongoose": "^5.7.1",
+    "node-fetch": "^2.6.0"
   }
 }
