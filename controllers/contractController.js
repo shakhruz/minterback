@@ -28,12 +28,12 @@ exports.createContract = (req, res) => {
     const newContract = new contract(req.body);
     console.log("new contract: ", newContract)
 
-    // if (newContract.sell_coin == "BIP") {
-    //     console.log("generate BIP address to receive coins")
-    //     const wallet = minter.generateWallet()
-    //     newContract.receivingAddress = wallet.address
-    //     newContract.receivingPrivKey = receivingPrivKey
-    // }
+    if (newContract.sell_coin == "BIP") {
+        console.log("generate BIP address to receive coins")
+        const wallet = minter.generateWallet()
+        newContract.receivingAddress = wallet.address
+        newContract.receivingPrivKey = wallet.priv_key
+    }
 
     newContract.save((err, contract) => {
         if (err) {
