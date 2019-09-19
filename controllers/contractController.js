@@ -57,16 +57,14 @@ function processContract(contract) {
         // this.btc_to_send = this.bip_received / this.bip_btc_buy_price * 100000000 
         contract.state = "payment received"
         contract.fromAddress = trx.from
+        contract.incomingTx = trx.hash
         contractPaid(contract)
     })
 }
 
 function contractPaid(contract) {
-    mongoose.set('useFindAndModify', false);
     console.log('contract paid: ', contract)
-    contractModel.findOneAndUpdate({
-        _id: contract.contractId
-    }, contract,
+    contractModel.updateOne({_id: contract._id}, contract,
         (err, contract) => {
             if (err) {
                 console.log(err);
