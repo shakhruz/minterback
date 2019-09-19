@@ -35,6 +35,7 @@ exports.createContract = (req, res) => {
     if (newContract.sell_coin == "BIP") {
         console.log("generate BIP address to receive coins")
         const wallet = minter.generateWallet()
+        console.log("wallet: ", wallet)
         newContract.receivingAddress = wallet.address
         newContract.receivingPrivKey = wallet.priv_key
         newContract.state = "waiting for payment"

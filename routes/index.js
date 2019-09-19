@@ -1,4 +1,5 @@
 import contract from '../controllers/contractController';
+import rates from '../controllers/ratesController';
 
 export default (app) => {
     app.route('/contracts')
@@ -9,4 +10,7 @@ export default (app) => {
         .get(contract.getContract)
         .put(contract.updateContract)
         .delete(contract.deleteContract);
+
+    app.route('/rates')
+        .get(rates.getAllRates)
 };

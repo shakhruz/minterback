@@ -9,8 +9,10 @@ import {walletFromMnemonic} from 'minterjs-wallet';
 
 exports.generateWallet = function () {
     const wallet = minterWallet.generateWallet()
-    console.log("generated address:", wallet.getAddressString())    
-    return {address: wallet.getAddressString(), priv_key: wallet.getPrivateKeyString()}
+    const address = wallet.getAddressString()
+    const priv_key = wallet.getPrivateKeyString()
+    // console.log("generated address, key: ", address, priv_key)    
+    return {address: address, priv_key: priv_key}
 }
 
 exports.waitForBIPPayment = function (address, callback) {
