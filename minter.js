@@ -1,10 +1,13 @@
 // const minterWallet = require('./minterhd.js')
 const fetch = require('node-fetch') 
 const minterWallet = require('minterjs-wallet') 
+const minterLib = require('minter-js-sdk')
 
 const bip_api_url = 'https://explorer-api.apps.minter.network/api/'
+const data = require('./data.js')
 
 import {walletFromMnemonic} from 'minterjs-wallet';
+const wallet_reserve = walletFromMnemonic(data.BIPReserveMnemonic);
 
 exports.generateWallet = function () {
     const wallet = minterWallet.generateWallet()
@@ -61,6 +64,36 @@ exports.getBIPBalance = function(address, callback) {
             callback(bipBalance)    
         }
     })
+}
+
+exports.sendFromReserve = function (amount, address, callback) {
+    console.log("send ", amount, " to ", address)
+    sendBIP(wallet_reserve.getPrivateKeyString(), address, amount, callback)
+}
+
+function sendBIP(privateKey, to, value, callback) {
+    let amount = Number(value)
+    console.log("send " + amount + "BIP " +" to " + to)
+    // const minterSDK = new Minter({apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
+    const minterSDK = new minterLib.Minter({apiType: 'gate', baseURL: 'https://gate-api.minter.network'});
+    const txParams = new minterLib.SendTxParams({
+        privateKey: privateKey,
+        chainId: 1,
+        address: to,
+        amount: amount,
+        coinSymbol: 'BIP',
+        feeCoinSymbol: 'BIP',
+        gasPrice: 1
+    })
+    
+    minterSDK.postTx(txParams)
+        .then((txHash) => {
+            callback(true, txHash)
+        }).catch((error) => {
+            const errMessage = error.response.data.error;
+            console.log(errMessage)
+            callback(false, errMessage)
+        })
 }
 
 // HD

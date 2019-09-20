@@ -48,6 +48,14 @@ function getReserveAccount() {
 }
 getReserveAccount()
 
+exports.generateReserveAddress = function (callback) {
+    (async () => {
+        const result = await wallet.createAddress(reserve_name);
+        const input_address = result.address
+        callback(input_address)
+    })();
+}
+
 // function getFees() {
 //     bestFee.fetchHigh().then(fee_high => {fees.high = fee_high; console.log("high fee: ", fee_high)})
 //     bestFee.fetchLow().then(fee_low => {fees.low = fee_low; console.log("low fee: ", fee_low)})
@@ -118,3 +126,23 @@ function sendTransaction(account, value_sat, to, rate, callback) {
         callback(false, err.stack )
     });
 }
+
+exports.waitForPayment = function (wallet_id, input_address, callback) {
+    (async () => {
+        // Connection and auth handled by opening client
+        await walletClient.open();
+        await walletClient.join('*', token);
+      })();
+
+    walletClient.bind('confirmed', (acc, details) => {
+        console.log('Wallet -- TX Event, Wallet ID:\n', acc, details);
+        for (let out of details.outputs ) {
+            if (out.address == input_address) {
+                console.log("транзакция: ", details)
+                console.log("платеж на ", out.value, "sat отправлен")
+                callback(out.value, details)
+            }
+        }
+    });
+}
+

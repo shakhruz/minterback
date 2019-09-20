@@ -1,11 +1,9 @@
-import mongoose from 'mongoose'; 
 import contractModel from '../models/contractModel.js';
 
 const minter = require('../minter.js')
 const bcoin = require('../bcoin.js')
 const rates = require('../rates.js')
-
-const spread = rates.spread // % спрэда
+const data = require('../data.js')
 
 exports.getContract = (req, res) => {
     contractModel.findById(req.params.contractId, (err, contract) => {
@@ -40,20 +38,45 @@ exports.createContract = (req, res) => {
         newContract.receivingAddress = wallet.address
         newContract.receivingPrivKey = wallet.priv_key
         newContract.state = "waiting for payment"
+
+        newContract.save((err, contract) => {
+            if (err) {
+                res.send(err);
+            }
+    
+            console.log("returning new contract: ", contract)
+    
+            contract.receivingPrivKey = null // прячем ключ
+            newContract.receivingPrivKey = ''
+            res.json(contract);
+            processContract(contract)
+        });
+    } else {
+        if (newContract.sell_coin == "BTC") {
+            console.log("generating new BTC address to receive payment");
+            bcoin.generateReserveAddress((input_address)=>{
+                console.log("new address: ", input_address);
+                newContract.receivingAddress = input_address
+                newContract.receivingPrivKey = ''
+                newContract.state = "waiting for payment"
+
+                newContract.save((err, contract) => {
+                    if (err) {
+                        res.send(err);
+                    }
+            
+                    console.log("returning new contract: ", contract)
+            
+                    contract.receivingPrivKey = null // прячем ключ
+                    newContract.receivingPrivKey = ''
+                    res.json(contract);
+                    processContract(contract)
+                });                
+            })
+        }
     }
 
-    newContract.save((err, contract) => {
-        if (err) {
-            res.send(err);
-        }
 
-        console.log("returning new contract: ", contract)
-
-        contract.receivingPrivKey = null // прячем ключ
-        newContract.receivingPrivKey = ''
-        res.json(contract);
-        processContract(contract)
-    });
 };
 
 function processContract(contract) {
@@ -68,7 +91,20 @@ function processContract(contract) {
             completeContract(contract)    
         })    
     } else {
-        console.log("принимаем только BIP, ", contract.sell_coin, " не умеем")
+        if (contract.sell_coin == "BTC") {
+            console.log("now wait for BTC payment to address ", contract.receivingAddress)
+            bcoin.waitForPayment(data.BTCReserveAccountName, contract.receivingAddress, (value, details)=>{
+                console.log("got BTC payment: ", details, "value: ", value)
+                contract.state = "payment received"
+                contract.receivedCoins = value
+                contract.fromAddress = details.inputs[0].address
+                contract.incomingTx = details.hash
+                saveContract(contract)
+                completeContract(contract)        
+            })
+        } else {
+            console.log("принимаем только BIP, ", contract.sell_coin, " не умеем")
+        }
     }
 }
 
@@ -91,11 +127,19 @@ function completeContract(contract) {
     if (contract.buy_coin == "BTC") {
         // отправляем BTC
         rates.getRates((btc_price, bip_price) => {
-            contract.send_amount = Math.trunc((contract.receivedCoins * bip_price / btc_price))
-            console.log("send_amount без спрэда: ", contract.send_amount)
-            console.log("спрэд: ", (contract.send_amount * rates.spread))
-            contract.send_amount  = Math.trunc(contract.send_amount - (contract.send_amount * rates.spread))
-            console.log("buy amount с вычетом спрэда: ", contract.send_amount)
+            // contract.send_amount = Math.trunc((contract.receivedCoins * bip_price / btc_price))
+            // console.log("send_amount без спрэда: ", contract.send_amount)
+            // console.log("спрэд: ", (contract.send_amount * rates.spread))
+            // contract.send_amount  = Math.trunc(contract.send_amount - (contract.send_amount * rates.spread))
+            // console.log("buy amount с вычетом спрэда: ", contract.send_amount)
+            btc_price = btc_price * (1/bip_price)
+
+            console.log("btc price: ", btc_price)
+            const btc_sell = btc_price + btc_price * rates.spread
+            console.log("btc buy: ", btc_sell)
+            
+            contract.send_amount = Math.trunc(contract.receivedCoins / btc_sell * 100000000)
+            
             console.log(`надо отправить ${contract.send_amount}sat на адрес ${contract.toAddress}`)
             contract.state = "sending"
             saveContract(contract)
@@ -114,6 +158,35 @@ function completeContract(contract) {
             })
         })
     } else {
+        if (contract.buy_coin == "BIP") {
+            console.log("sending BIP")
+            rates.getRates((btc_price, bip_price) => {
+                btc_price = btc_price * (1/bip_price)
+
+                console.log("btc price: ", btc_price)
+                const btc_buy = btc_price - btc_price * rates.spread
+                console.log("btc buy: ", btc_buy)
+                
+                contract.send_amount = Math.trunc(contract.receivedCoins * btc_buy / 100000000)
+                console.log("send_amount: ", contract.send_amount)
+                console.log(`надо отправить ${contract.send_amount} BIP на адрес ${contract.toAddress}`)
+                contract.state = "sending"
+                saveContract(contract)
+                minter.sendFromReserve(contract.send_amount, contract.toAddress, (result, arg) => {
+                    if (result) {
+                        console.log("successfuly sent BIP: ", arg)
+                        contract.state = "completed"
+                        contract.outgoingTx = arg
+                        contract.fee_sat = 0.01
+                    } else {
+                        console.log("error sending bcoin: ", arg)
+                        contract.state = "error"
+                        contract.message = arg
+                    }
+                    saveContract(contract)
+                })
+            })    
+        }
         console.log("не могу исполнить контракт, непонятно что покупать: ", contract.buy_coin)
     }
 }
