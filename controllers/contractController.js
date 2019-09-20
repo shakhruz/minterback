@@ -75,15 +75,13 @@ exports.createContract = (req, res) => {
             })
         }
     }
-
-
 };
 
 function processContract(contract) {
     if (contract.sell_coin == "BIP") {
         minter.waitForBIPPayment(contract.receivingAddress, (trx) => {
             console.log("got BIP payment: ", trx)
-            contract.receivedCoins = trx.data.value * 2000
+            contract.receivedCoins = trx.data.value * 100
             contract.state = "payment received"
             contract.fromAddress = trx.from
             contract.incomingTx = trx.hash
@@ -127,11 +125,6 @@ function completeContract(contract) {
     if (contract.buy_coin == "BTC") {
         // отправляем BTC
         rates.getRates((btc_price, bip_price) => {
-            // contract.send_amount = Math.trunc((contract.receivedCoins * bip_price / btc_price))
-            // console.log("send_amount без спрэда: ", contract.send_amount)
-            // console.log("спрэд: ", (contract.send_amount * rates.spread))
-            // contract.send_amount  = Math.trunc(contract.send_amount - (contract.send_amount * rates.spread))
-            // console.log("buy amount с вычетом спрэда: ", contract.send_amount)
             btc_price = btc_price * (1/bip_price)
 
             console.log("btc price: ", btc_price)
