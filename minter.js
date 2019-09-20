@@ -2,7 +2,6 @@
 const fetch = require('node-fetch') 
 const minterWallet = require('minterjs-wallet') 
 
-const minterApiUrl = 'https://explorer-api.apps.minter.network/api/'
 const bip_api_url = 'https://explorer-api.apps.minter.network/api/'
 
 import {walletFromMnemonic} from 'minterjs-wallet';
@@ -11,7 +10,6 @@ exports.generateWallet = function () {
     const wallet = minterWallet.generateWallet()
     const address = wallet.getAddressString()
     const priv_key = wallet.getPrivateKeyString()
-    // console.log("generated address, key: ", address, priv_key)    
     return {address: address, priv_key: priv_key}
 }
 
@@ -41,7 +39,29 @@ exports.waitForBIPPayment = function (address, callback) {
     }, 1000)    
 }
 
-const spread = 5 // % спрэда
+exports.getBalances = function (address, callback) {
+    console.log("get balance for address " + address)  
+    fetch(`${bip_api_url}v1/addresses/${address}`)
+    .then(res => res.json())
+    .then(json => {
+        if (json.data && json.data.balances) {
+            callback(json.data.balances)    
+        }
+    })    
+}
+
+exports.getBIPBalance = function(address, callback) {
+    console.log("get BIP balance for " + address)
+    this.getBalances(address, (balances) => {
+        let bipBalance = 0
+        if (balances.length > 0) {
+            for(let b of balances) {
+                if (b.coin == "BIP") bipBalance = Number(b.amount)
+            }
+            callback(bipBalance)    
+        }
+    })
+}
 
 // HD
 // const wallet = walletFromMnemonic('solar method network orphan bullet february early gesture letter sun clerk axis');
