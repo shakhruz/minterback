@@ -7,3 +7,10 @@ exports.getAllRates = (req, res) => {
     }
     res.json(allRates);
 };
+
+exports.getAllCoins = (req, res) => {
+    const allCoins = {
+        coins: ["BIP", "BTC", "USDT", "ETH"]
+    }
+    res.json(allCoins);
+};

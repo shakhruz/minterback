@@ -13,4 +13,7 @@ export default (app) => {
 
     app.route('/rates')
         .get(rates.getAllRates)
+
+    app.route('/coins')
+        .get(rates.getAllCoins)
 };
