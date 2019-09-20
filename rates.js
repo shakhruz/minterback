@@ -1,6 +1,8 @@
 const btc_rate_api = 'https://blockchain.info/ticker'
 const minterApiUrl = 'https://explorer-api.apps.minter.network/api/'
 
+exports.spread = 0.05
+
 let _btc_usd = 0
 let _bip_usd_price = 0
 

@@ -23,6 +23,9 @@ const ContractScheme = new Schema({
         type: Number,
         required: ""
     },
+    send_amount: {
+        type: Number
+    },
     fromAddress: {
         type: String
     },
@@ -59,6 +62,9 @@ const ContractScheme = new Schema({
     },
     rate: {
         type: Number
+    },
+    message: {
+        type: String
     }
 });
 

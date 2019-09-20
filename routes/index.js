@@ -16,4 +16,7 @@ export default (app) => {
 
     app.route('/coins')
         .get(rates.getAllCoins)
+
+    app.route('/usd_price')
+        .get(rates.usd_price)        
 };
