@@ -76,7 +76,8 @@ function sendBIP(privateKey, to, value, callback) {
     console.log("send " + amount + "BIP " +" to " + to)
     // const minterSDK = new minterLib.Minter({chainId: 1,apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
     // const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
-    const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'gate', baseURL: 'https://gate.minter.network/api/v1/'});
+    // const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'gate', baseURL: 'https://gate.minter.network/api/v1/'});
+    const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'node', baseURL: 'https://api.minter.stakeholder.space'});
     const txParams = new minterLib.SendTxParams({
         privateKey: privateKey,
         chainId: 1,
