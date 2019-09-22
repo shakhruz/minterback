@@ -107,7 +107,7 @@ function processContract(contract) {
 }
 
 function saveContract(contract) {
-    console.log('contract paid: ', contract)
+    console.log('save contract: ', contract)
     contractModel.updateOne({_id: contract._id}, contract,
         (err, contract) => {
             if (err) {
@@ -172,7 +172,7 @@ function completeContract(contract) {
                         contract.outgoingTx = arg
                         contract.fee_sat = 0.01
                     } else {
-                        console.log("error sending bcoin: ", arg)
+                        console.log("error sending BIP: ", arg)
                         contract.state = "error"
                         contract.message = arg
                     }
