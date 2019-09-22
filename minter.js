@@ -74,7 +74,8 @@ exports.sendFromReserve = function (amount, address, callback) {
 function sendBIP(privateKey, to, value, callback) {
     let amount = Number(value)
     console.log("send " + amount + "BIP " +" to " + to)
-    // const minterSDK = new Minter({apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
+    // const minterSDK = new minterLib.Minter({chainId: 1,apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
+    // const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
     const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'gate', baseURL: 'https://gate.minter.network/api/v1/'});
     const txParams = new minterLib.SendTxParams({
         privateKey: privateKey,
