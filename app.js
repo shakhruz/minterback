@@ -4,10 +4,12 @@ import bodyParser from 'body-parser';
 import routes from './routes/index.js';
 var cors = require('cors')
 
+const data = require('./data.js')
+
 const app = express();
 
 var corsOptions = {
-    origin: 'http://162.213.255.184:4000',
+    origin: data.minterbackurl,
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }
 

@@ -27,9 +27,9 @@ exports.getAllContracts = (req, res) => {
 };
 
 exports.createContract = (req, res) => {
-    console.log("got req: ", req)
     const newContract = new contractModel(req.body);
     console.log("new contract: ", newContract)
+    newContract.buy_amount = 0;
 
     if (newContract.sell_coin == "BIP") {
         console.log("generate BIP address to receive coins")

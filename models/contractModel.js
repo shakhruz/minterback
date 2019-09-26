@@ -8,8 +8,7 @@ const ContractScheme = new Schema({
         required: ""
     },
     buy_coin: {
-        type: String,
-        required: ""
+        type: String
     },
     date: {
         type: Date,
