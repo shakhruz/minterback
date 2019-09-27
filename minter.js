@@ -38,7 +38,7 @@ exports.waitForBIPPayment = function (address, callback) {
       })
   
       tries -= 1
-      if (tries < 1) cancelInterval(interval)
+      if (tries < 1) clearInterval(interval)
     }, 1000)    
 }
 
