@@ -5,7 +5,7 @@ exports.spread = 0.05;
 
 let _btc_usd = 0;
 let _bip_usd_price = 0;
-const updateRatesInterval = 5000;
+const updateRatesInterval = 10000;
 
 function updateRates(callback) {
   fetch(`${minterApiUrl}v1/status`)
