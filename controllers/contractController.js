@@ -28,6 +28,7 @@ exports.getAllContracts = (req, res) => {
   });
 };
 
+// Создаем новый контракт на обмен
 exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
   console.log("new contract: ", newContract);
@@ -53,7 +54,7 @@ exports.createContract = (req, res) => {
 
       // восстанавливаем ключ и продолжаем
       contract.receivingPrivKey = priv_key;
-      processContract(contract);
+      startContract(contract);
     });
   } else {
     if (newContract.sell_coin == "BTC") {
@@ -71,14 +72,15 @@ exports.createContract = (req, res) => {
 
           console.log("returning new contract: ", contract);
           res.json(contract);
-          processContract(contract);
+          startContract(contract);
         });
       });
     }
   }
 };
 
-function processContract(contract) {
+// Ждем платеж по контракт чтобы начать его исполнение
+function startContract(contract) {
   console.log("process contract: ", contract);
   if (contract.sell_coin == "BIP") {
     minter.waitForBIPPayment(contract.receivingAddress, trx => {
@@ -116,6 +118,7 @@ function processContract(contract) {
   }
 }
 
+// Сохранить контракт в базе данных
 function saveContract(contract) {
   console.log("save contract: ", contract);
   contractModel.updateOne({ _id: contract._id }, contract, (err, contract) => {
