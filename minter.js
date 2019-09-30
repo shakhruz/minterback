@@ -1,14 +1,19 @@
-// const minterWallet = require('./minterhd.js')
+// Взаимодействие с Minter блокчейном
+//
+//
+
 const fetch = require("node-fetch");
 const minterWallet = require("minterjs-wallet");
 const minterLib = require("minter-js-sdk");
 
+// адрес сервиса API для Minter
 const bip_api_url = "https://explorer-api.apps.minter.network/api/";
 const data = require("./data.js");
 
 import { walletFromMnemonic } from "minterjs-wallet";
 const wallet_reserve = walletFromMnemonic(data.BIPReserveMnemonic);
 
+// Сгенерировать новый адрес и кошелек минтер
 exports.generateWallet = function() {
   const wallet = minterWallet.generateWallet();
   const address = wallet.getAddressString();
@@ -16,6 +21,7 @@ exports.generateWallet = function() {
   return { address: address, priv_key: priv_key };
 };
 
+// Ждет приход денег на указанный адрес и вызывает callback
 exports.waitForBIPPayment = function(address, callback) {
   console.log("waiting for a payment on address " + address);
   let tries = 60 * 60;
@@ -44,6 +50,7 @@ exports.waitForBIPPayment = function(address, callback) {
   }, 1000);
 };
 
+// Получаем все балансы адреса
 exports.getBalances = function(address, callback) {
   console.log("get balance for address " + address);
   fetch(`${bip_api_url}v1/addresses/${address}`)
@@ -55,6 +62,7 @@ exports.getBalances = function(address, callback) {
     });
 };
 
+// Возвращает баланс BIP токенов по адресу
 exports.getBIPBalance = function(address, callback) {
   console.log("get BIP balance for " + address);
   this.getBalances(address, balances => {
@@ -68,11 +76,13 @@ exports.getBIPBalance = function(address, callback) {
   });
 };
 
+// Отправляем токены из резервного кошелька на адрес
 exports.sendFromReserve = function(amount, address, callback) {
   console.log("send ", amount, " to ", address);
   sendBIP(wallet_reserve.getPrivateKeyString(), address, amount, callback);
 };
 
+// Отправляем все BIP токены что есть по адресу на разервный кошелек
 exports.sendAllToReserve = function(from, priv_key, callback) {
   this.getBIPBalance(from, balance_bip => {
     if (balance_bip > 0.01) {
@@ -86,12 +96,10 @@ exports.sendAllToReserve = function(from, priv_key, callback) {
   });
 };
 
+// Отправляем BIP токены на адрес используя приватный ключ
 function sendBIP(privateKey, to, value, callback) {
   let amount = Number(value);
   console.log("send " + amount + "BIP " + " to " + to);
-  // const minterSDK = new minterLib.Minter({chainId: 1,apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
-  // const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'node', baseURL: 'https://minter-node-1.testnet.minter.network'});
-  // const minterSDK = new minterLib.Minter({chainId: 1, apiType: 'gate', baseURL: 'https://gate.minter.network/api/v1/'});
   const minterSDK = new minterLib.Minter({
     chainId: 1,
     apiType: "node",
@@ -118,20 +126,3 @@ function sendBIP(privateKey, to, value, callback) {
       callback(false, errMessage);
     });
 }
-
-// HD
-// const wallet = walletFromMnemonic('solar method network orphan bullet february early gesture letter sun clerk axis');
-// const seed = minterWallet.seedFromMnemonic('solar method network orphan bullet february early gesture letter sun clerk axis')
-// console.log('seed: ', seed.toString('hex'))
-// const hd_key = minterWallet.hdKeyFromSeed(seed, 1)._privateKey.toString('hex')
-// console.log('hd key: ', hd_key)
-// const hd_key1 = minterWallet.hdKeyFromSeed(seed, 3)._privateKey.toString('hex')
-// console.log('hd key1: ', hd_key1)
-// const hd_key2 = minterWallet.hdKeyFromSeed(seed, 4)._privateKey.toString('hex')
-// console.log('hd key2: ', hd_key2)
-// const wallet1 = minterWallet.walletFromPrivateKey(Buffer.from(hd_key, 'hex'))
-// const wallet2 = minterWallet.walletFromPrivateKey(Buffer.from(hd_key1, 'hex'))
-// const wallet3 = minterWallet.walletFromPrivateKey(Buffer.from(hd_key2, 'hex'))
-// import {walletFromExtendedPrivateKey} from 'minterjs-wallet';
-// const wallet = walletFromExtendedPrivateKey('xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY');
-// const key = minterWallet.hdKeyFromSeed()

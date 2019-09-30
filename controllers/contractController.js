@@ -5,6 +5,7 @@ const bcoin = require("../bcoin.js");
 const rates = require("../rates.js");
 const data = require("../data.js");
 
+// Возвращаем все данные по контракту по id
 exports.getContract = (req, res) => {
   contractModel.findById(req.params.contractId, (err, contract) => {
     if (err) {
@@ -16,8 +17,9 @@ exports.getContract = (req, res) => {
   });
 };
 
+// Возвращаем все контракты
 exports.getAllContracts = (req, res) => {
-  contractModel.find({}, (err, contracts) => {
+  contractModel.find({ state: "completed" }, (err, contracts) => {
     if (err) {
       res.send(err);
     }
@@ -224,35 +226,35 @@ function sendAllBIPToReserve(contract) {
   );
 }
 
-exports.updateContract = (req, res) => {
-  contractModel.findOneAndUpdate(
-    {
-      _id: req.params.contractId
-    },
-    req.body,
-    (err, contract) => {
-      if (err) {
-        res.send(err);
-      }
+// exports.updateContract = (req, res) => {
+//   contractModel.findOneAndUpdate(
+//     {
+//       _id: req.params.contractId
+//     },
+//     req.body,
+//     (err, contract) => {
+//       if (err) {
+//         res.send(err);
+//       }
 
-      res.json(contract);
-    }
-  );
-};
+//       res.json(contract);
+//     }
+//   );
+// };
 
-exports.deleteContract = (req, res) => {
-  contractModel.remove(
-    {
-      _id: req.params.contractId
-    },
-    err => {
-      if (err) {
-        res.send(err);
-      }
+// exports.deleteContract = (req, res) => {
+//   contractModel.remove(
+//     {
+//       _id: req.params.contractId
+//     },
+//     err => {
+//       if (err) {
+//         res.send(err);
+//       }
 
-      res.json({
-        message: `contract ${req.params.contractId} successfully deleted`
-      });
-    }
-  );
-};
+//       res.json({
+//         message: `contract ${req.params.contractId} successfully deleted`
+//       });
+//     }
+//   );
+// };
