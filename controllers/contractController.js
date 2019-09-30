@@ -4,6 +4,7 @@ const minter = require("../minter.js");
 const bcoin = require("../bcoin.js");
 const rates = require("../rates.js");
 const data = require("../data.js");
+const eth = require("../eth.js");
 
 // Возвращаем все данные по контракту по id
 exports.getContract = (req, res) => {
@@ -113,7 +114,15 @@ function startContract(contract) {
         }
       );
     } else {
-      console.log("принимаем только BIP, ", contract.sell_coin, " не умеем");
+      if (contract.sell_coin == "ETH") {
+        console.log("now wait for ETH payment...");
+      } else {
+        console.log(
+          "принимаем только BIP, BTC, ETH",
+          contract.sell_coin,
+          " не умеем"
+        );
+      }
     }
   }
 }
@@ -135,7 +144,7 @@ function completeContract(contract) {
   console.log("complete contract...");
   if (contract.buy_coin == "BTC") {
     // отправляем BTC
-    rates.getRates((btc_price, bip_price) => {
+    rates.getRates((btc_price, bip_price, eth_price) => {
       btc_price = btc_price * (1 / bip_price);
 
       console.log("btc price: ", btc_price);
@@ -172,7 +181,7 @@ function completeContract(contract) {
   } else {
     if (contract.buy_coin == "BIP") {
       console.log("sending BIP");
-      rates.getRates((btc_price, bip_price) => {
+      rates.getRates((btc_price, bip_price, eth_price) => {
         btc_price = btc_price * (1 / bip_price);
 
         console.log("btc price: ", btc_price);
@@ -206,11 +215,48 @@ function completeContract(contract) {
           }
         );
       });
+    } else {
+      if (contract.buy_coin == "ETH") {
+        console.log("sending ETH");
+        rates.getRates((btc_price, bip_price, eth_price) => {
+          eth_price = eth_price * (1 / bip_price);
+
+          console.log("eth price: ", eth_price);
+          const eth_buy = eth_price - eth_price * rates.spread;
+          console.log("eth buy: ", eth_buy);
+
+          contract.send_amount = Math.trunc(contract.receivedCoins * eth_buy);
+          console.log("send_amount: ", contract.send_amount);
+          console.log(
+            `надо отправить ${contract.send_amount} ETH на адрес ${contract.toAddress}`
+          );
+          contract.state = "sending";
+          saveContract(contract);
+          eth.sendFromReserve(
+            contract.toAddress,
+            contract.send_amount,
+            (result, arg) => {
+              if (result) {
+                console.log("successfuly sent ETH: ", arg);
+                contract.state = "completed";
+                contract.outgoingTx = arg;
+                contract.fee_sat = 0.01; // TODO get real fee
+              } else {
+                console.log("error sending ETH: ", arg);
+                contract.state = "error";
+                contract.message = arg;
+              }
+              saveContract(contract);
+            }
+          );
+        });
+      } else {
+        console.log(
+          "не могу исполнить контракт, непонятно что покупать: ",
+          contract.buy_coin
+        );
+      }
     }
-    console.log(
-      "не могу исполнить контракт, непонятно что покупать: ",
-      contract.buy_coin
-    );
   }
 }
 

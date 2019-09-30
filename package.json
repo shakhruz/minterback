@@ -26,15 +26,20 @@
     "nodemon": "^1.19.2"
   },
   "dependencies": {
+    "ansicolor": "^1.1.92",
     "bclient": "^0.1.7",
     "bcoin": "^1.0.2",
     "bitcoin-best-fee": "^0.1.1",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
+    "cryptocompare": "^1.0.0",
+    "ethereumjs-tx": "^2.1.1",
     "express": "^4.17.1",
     "minter-js-sdk": "^0.20.1",
     "minterjs-wallet": "^4.0.1",
     "mongoose": "^5.7.1",
-    "node-fetch": "^2.6.0"
+    "node-fetch": "^2.6.0",
+    "ololog": "^1.1.149",
+    "web3": "^1.2.1"
   }
 }
