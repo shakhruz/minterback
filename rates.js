@@ -36,8 +36,6 @@ function updateRates(callback) {
             _btc_usd = prices.BTC.USD;
             _eth_usd = prices.ETH.USD;
             callback(_btc_usd, _bip_usd_price, _eth_usd);
-            // -> { BTC: { USD: 1114.63, EUR: 1055.82 },
-            //      ETH: { USD: 12.74, EUR: 12.06 } }
           })
           .catch(console.error);
 

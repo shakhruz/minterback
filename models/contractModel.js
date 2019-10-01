@@ -65,6 +65,18 @@ const ContractScheme = new Schema({
   },
   message: {
     type: String
+  },
+  btc_usd: {
+    type: Number
+  },
+  eth_usd: {
+    type: Number
+  },
+  bip_usd: {
+    type: Number
+  },
+  price: {
+    type: Number
   }
 });
 

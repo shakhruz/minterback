@@ -34,6 +34,9 @@ exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
   console.log("new contract: ", newContract);
   newContract.buy_amount = 0;
+  newContract.btc_usd = rates.btc_price();
+  newContract.eth_usd = rates.eth_price();
+  newContract.bip_usd = rates.bip_price();
 
   if (newContract.sell_coin == "BIP") {
     console.log("generate BIP address to receive coins");
@@ -155,6 +158,8 @@ function completeContract(contract) {
         (contract.receivedCoins / btc_sell) * 100000000
       );
 
+      contract.price = btc_sell;
+
       console.log(
         `надо отправить ${contract.send_amount}sat на адрес ${contract.toAddress}`
       );
@@ -191,6 +196,9 @@ function completeContract(contract) {
         contract.send_amount = Math.trunc(
           (contract.receivedCoins * btc_buy) / 100000000
         );
+
+        contract.price = btc_buy;
+
         console.log("send_amount: ", contract.send_amount);
         console.log(
           `надо отправить ${contract.send_amount} BIP на адрес ${contract.toAddress}`
@@ -226,6 +234,8 @@ function completeContract(contract) {
           console.log("eth buy: ", eth_buy);
 
           contract.send_amount = Math.trunc(contract.receivedCoins * eth_buy);
+          contract.price = eth_buy;
+
           console.log("send_amount: ", contract.send_amount);
           console.log(
             `надо отправить ${contract.send_amount} ETH на адрес ${contract.toAddress}`
