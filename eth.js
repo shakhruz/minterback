@@ -27,7 +27,7 @@ exports.generateWallet = function() {
 };
 
 exports.getBalance = function(address, callback) {
-  web3_ws.eth.getBalance(address).then(result => {
+  web3.eth.getBalance(address).then(result => {
     const balance = web3_ws.utils.fromWei(result, "ether");
     // console.log("eth balance: " + balance + " ETH")
     callback(balance);

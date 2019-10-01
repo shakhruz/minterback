@@ -18,7 +18,7 @@ let _bip_usd_price = 0;
 let _eth_usd = 0;
 
 // Как часто будем обновлять курсы - 1000 - 1 сек
-const updateRatesInterval = 10000;
+const updateRatesInterval = 60 * 1000;
 
 // Обновить все курсы (BTC,BIP,ETH)
 function updateRates(callback) {
