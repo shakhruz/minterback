@@ -28,20 +28,26 @@ exports.generateWallet = function() {
 
 exports.getBalance = function(address, callback) {
   web3.eth.getBalance(address).then(result => {
-    const balance = web3_ws.utils.fromWei(result, "ether");
+    const balance = web3.utils.fromWei(result, "ether");
     // console.log("eth balance: " + balance + " ETH")
     callback(balance);
   });
 };
 
 exports.sendToReserve = function(priv_key, from, amount_eth, callback) {
-  const value_wei = web3_ws.utils.toWei(amount_eth, "ether");
+  const value_wei = web3.utils.toWei(
+    web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
+    "gwei"
+  );
   console.log(`sending ${value_wei} wei from ${from} to ${data.ethAddress}`);
   sendTransaction(priv_key, from, data.ethAddress, value_wei, callback);
 };
 
 exports.sendFromReserve = function(to, amount_eth, callback) {
-  const value_wei = web3_ws.utils.toWei(amount_eth, "ether");
+  const value_wei = web3.utils.toWei(
+    web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
+    "gwei"
+  );
   console.log(`sending ${value_wei} wei from ${data.ethAddress} to ${to}`);
   sendTransaction(
     data.ethWalletPrivKey,
@@ -66,7 +72,7 @@ function sendTransaction(privateKey, from, to, value_wei, callback) {
           value: web3.utils.toHex(value_wei), //web3.toHex( web3.toWei(amountToSend, 'ether') ),
           // "gas": 21000,
           // "gasPrice": gasPrices.high * 1000000000, // converts the gwei price to wei
-          nonce: nonce,
+          nonce: nonce + 1,
           gasPrice: 20000000000,
           gasLimit: 21000,
           chainId: 1 // EIP 155 chainId - mainnet: 1, rinkeby: 4

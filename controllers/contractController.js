@@ -233,7 +233,7 @@ function completeContract(contract) {
           const eth_buy = eth_price - eth_price * rates.spread;
           console.log("eth buy: ", eth_buy);
 
-          contract.send_amount = Math.trunc(contract.receivedCoins * eth_buy);
+          contract.send_amount = contract.receivedCoins / eth_buy;
           contract.price = eth_buy;
 
           console.log("send_amount: ", contract.send_amount);
