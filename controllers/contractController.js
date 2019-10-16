@@ -79,6 +79,30 @@ exports.createContract = (req, res) => {
           startContract(contract);
         });
       });
+    } else {
+      if (newContract.sell_coin == "ETH") {
+        console.log("generating new ETH address to receive payment");
+        const eth_wallet = eth.generateWallet();
+        console.log("wallet: ", eth_wallet);
+        newContract.receivingAddress = eth_wallet.address;
+        newContract.receivingPrivKey = eth_wallet.priv_key;
+        const priv_key = newContract.receivingPrivKey;
+        newContract.state = "waiting for payment";
+
+        newContract.save((err, contract) => {
+          if (err) {
+            res.send(err);
+          }
+
+          console.log("returning new contract: ", contract);
+          newContract.receivingPrivKey = null; // прячем ключ
+          res.json(newContract); // возвращаем без ключа
+
+          // восстанавливаем ключ и продолжаем
+          contract.receivingPrivKey = priv_key;
+          startContract(contract);
+        });
+      }
     }
   }
 };
@@ -119,6 +143,18 @@ function startContract(contract) {
     } else {
       if (contract.sell_coin == "ETH") {
         console.log("now wait for ETH payment...");
+        eth.waitForPayment(contract.receivingAddress, balance => {
+          console.log("got ETH payment: ", balance);
+          contract.receivedCoins = balance;
+          contract.state = "payment received";
+          contract.fromAddress = "";
+          contract.incomingTx = "";
+          saveContract(contract);
+          eth.sendAllToReserve(contract.receivingPrivKey, () => {
+            console.log("sent to reserve");
+          });
+          completeContract(contract);
+        });
       } else {
         console.log(
           "принимаем только BIP, BTC, ETH",
@@ -187,17 +223,38 @@ function completeContract(contract) {
     if (contract.buy_coin == "BIP") {
       console.log("sending BIP");
       rates.getRates((btc_price, bip_price, eth_price) => {
-        btc_price = btc_price * (1 / bip_price);
+        if (contract.sell_coin == "BTC") {
+          console.log("считаем сколько BIP нужно выплатить за полученные BTC");
+          btc_price = btc_price * (1 / bip_price);
 
-        console.log("btc price: ", btc_price);
-        const btc_buy = btc_price - btc_price * rates.spread;
-        console.log("btc buy: ", btc_buy);
+          console.log("btc price: ", btc_price);
+          const btc_buy = btc_price - btc_price * rates.spread;
+          console.log("btc buy: ", btc_buy);
 
-        contract.send_amount = Math.trunc(
-          (contract.receivedCoins * btc_buy) / 100000000
-        );
+          contract.send_amount = Math.trunc(
+            (contract.receivedCoins * btc_buy) / 100000000
+          );
 
-        contract.price = btc_buy;
+          contract.price = btc_buy;
+        } else {
+          if (contract.sell_coin == "ETH") {
+            console.log(
+              "считаем сколько BIP нужно выплатить за полученные ETH"
+            );
+            eth_price = eth_price * (1 / eth_price);
+            console.log("eth price: ", eth_price);
+            const eth_buy = eth_price - eth_price * rates.spread;
+            console.log("eth buy: ", eth_buy);
+
+            contract.send_amount = Math.trunc(
+              (contract.receivedCoins * eth_buy) / 1000000000000000000
+            );
+
+            contract.price = eth_buy;
+          } else {
+            console.log("не могу посчитать сколько выплатить BIP...");
+          }
+        }
 
         console.log("send_amount: ", contract.send_amount);
         console.log(
@@ -243,8 +300,8 @@ function completeContract(contract) {
           contract.state = "sending";
           saveContract(contract);
           eth.sendFromReserve(
-            contract.toAddress,
             contract.send_amount,
+            contract.toAddress,
             (result, arg) => {
               if (result) {
                 console.log("successfuly sent ETH: ", arg);

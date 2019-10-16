@@ -34,6 +34,7 @@
     "cors": "^2.8.5",
     "cryptocompare": "^1.0.0",
     "ethereumjs-tx": "^2.1.1",
+    "ethers": "^4.0.37",
     "express": "^4.17.1",
     "minter-js-sdk": "^0.20.1",
     "minterjs-wallet": "^4.0.1",

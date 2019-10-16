@@ -1,179 +1,109 @@
-const Web3 = require("web3");
 const data = require("./data");
-
-const EthereumTx = require("ethereumjs-tx").Transaction;
 const log = require("ololog").configure({ time: true });
 const ansi = require("ansicolor").nice;
 
-const apiKey = "556d9e89ad8243d8b9547209537f5cef";
-const web3 = new Web3(
-  new Web3.providers.HttpProvider(
-    `https://ethereum.api.nodesmith.io/v1/mainnet/jsonrpc?apiKey=${apiKey}`
-  )
-);
+const ethers = require("ethers");
 
-const web3_ws = new Web3(
-  new Web3.providers.WebsocketProvider(
-    `wss://ethereum.api.nodesmith.io/v1/mainnet/jsonrpc/ws?apiKey=${apiKey}`
-  )
-);
+const infuraId = "7a2c840b17db4133aa4a5450464f6de2";
+const infuraSecret = "04a628a7841148ae85f675e774ad3a6a";
+const infureEndpoint = "mainnet.infura.io/v3/7a2c840b17db4133aa4a5450464f6de2";
 
-// log(`ETH:`.cyan)
+let infuraProvider = new ethers.providers.InfuraProvider("mainnet");
+const wallet_reserve = ethers.Wallet.fromMnemonic(data.ethWalletSeed);
 
+// Сгенерировать новый адрес и кошелек ETH
 exports.generateWallet = function() {
-  const account = web3_ws.eth.accounts.create();
-  console.log("new ETH wallet: ", account.address, account.privateKey);
-  return account;
+  const wallet = ethers.Wallet.createRandom();
+  return { address: wallet.address, priv_key: wallet.privateKey };
 };
 
-exports.getBalance = function(address, callback) {
-  web3.eth.getBalance(address).then(result => {
-    const balance = web3.utils.fromWei(result, "ether");
-    // console.log("eth balance: " + balance + " ETH")
-    callback(balance);
+// Ждет приход денег на указанный адрес и вызывает callback
+// изначально на балансе не должно быть денег, желательно использовать новый адрес
+exports.waitForPayment = function(address, callback) {
+  log("waiting for a payment on address " + address);
+  infuraProvider.on(address, balance => {
+    log("updated balance: " + balance + " on address: " + address);
+    if (balance.gt(0)) {
+      log("positive balance");
+      callback(balance.toNumber());
+      infuraProvider.removeAllListeners(address);
+    }
   });
 };
 
-exports.sendToReserve = function(priv_key, from, amount_eth, callback) {
-  const value_wei = web3.utils.toWei(
-    web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
-    "gwei"
-  );
-  console.log(`sending ${value_wei} wei from ${from} to ${data.ethAddress}`);
-  sendTransaction(priv_key, from, data.ethAddress, value_wei, callback);
+// Получаем все балансы адреса
+exports.getBalance = function(address, callback) {
+  log("get balance for address " + address);
+  infuraProvider.getBalance(address).then(balance => {
+    let etherString = ethers.utils.formatEther(balance);
+    log("ETH Balance: " + etherString);
+    callback(etherString);
+  });
 };
 
-exports.sendFromReserve = function(to, amount_eth, callback) {
-  const value_wei = web3.utils.toWei(
-    web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
-    "gwei"
-  );
-  console.log(`sending ${value_wei} wei from ${data.ethAddress} to ${to}`);
-  sendTransaction(
-    data.ethWalletPrivKey,
-    data.ethAddress,
-    to,
-    value_wei,
-    callback
-  );
+// Отправляем токены из резервного кошелька на адрес
+exports.sendFromReserve = function(amount, address, callback) {
+  log("send " + amount + " to " + address + " from reserve");
+  sendETH(wallet_reserve, address, amount.toString(), callback);
 };
 
-function sendTransaction(privateKey, from, to, value_wei, callback) {
-  (async () => {
-    web3.eth.getTransactionCount(from).then(nonce => {
-      console.log(
-        `The outgoing transaction count for your wallet address is: ${nonce}`
-      );
+// Отправляем все BIP токены что есть по адресу на разервный кошелек
+exports.sendAllToReserve = function(priv_key, callback) {
+  const wallet = new ethers.Wallet(priv_key, infuraProvider);
+  sendAllFromWallet(wallet, wallet_reserve.address, callback);
+};
 
-      getCurrentGasPrices().then(gasPrices => {
-        console.log("gas prices: ", gasPrices);
-        let details = {
-          to: to,
-          value: web3.utils.toHex(value_wei), //web3.toHex( web3.toWei(amountToSend, 'ether') ),
-          // "gas": 21000,
-          // "gasPrice": gasPrices.high * 1000000000, // converts the gwei price to wei
-          nonce: nonce + 1,
-          gasPrice: 20000000000,
-          gasLimit: 21000,
-          chainId: 1 // EIP 155 chainId - mainnet: 1, rinkeby: 4
-        };
+// send some ETH from a wallet to an address
+async function sendETH(fromWallet, toAddress, amountETHString, callback) {
+  const nw = await fromWallet.connect(infuraProvider);
+  const balance_raw = await nw.getBalance();
+  const balance = ethers.utils.formatEther(balance_raw).toString();
+  log("send ETH balance: ", balance);
 
-        const transaction = new EthereumTx(details);
-        transaction.sign(Buffer.from(privateKey, "hex"));
-        const serializedTransaction = transaction.serialize();
+  const amountETH = ethers.utils.parseEther(amountETHString);
+  let gasPrice = await infuraProvider.getGasPrice();
+  let gasLimit = 21000;
+  let amountFull = amountETH.add(gasPrice.mul(gasLimit));
 
-        //   const feeCost = transaction.getUpfrontCost()
-        //   console.log('Total Amount of wei needed:' + feeCost.toString())
-
-        web3.eth
-          .sendSignedTransaction("0x" + serializedTransaction.toString("hex"))
-          .on("transactionHash", function(hash) {
-            console.log("tx hash: ", hash);
-            callback(true, `Транзакция отправлена: ${hash}`);
-          })
-          .on("receipt", function(receipt) {
-            console.log("tx receipt: ", receipt);
-            callback(true, `Транзакция принята: ${receipt}`);
-          })
-          .on("confirmation", function(confirmationNumber, receipt) {
-            console.log("tx confirmation: ", confirmationNumber, receipt);
-            callback(
-              true,
-              `Транзакция подтверждена, номер подтверждения: ${confirmationNumber}`
-            );
-          })
-          .on("error", error => {
-            console.log("ETH sending error:", error);
-            callback(false, `Ошибка при проведении транзакции: ${error}`);
-          });
-      });
+  if (balance_raw.gt(amountFull)) {
+    const result = await nw.sendTransaction({
+      to: toAddress,
+      gasLimit: gasLimit,
+      gasPrice: gasPrice,
+      value: amountETH
     });
-  })();
+    log("result sending: ", result);
+    callback(true, result);
+  } else {
+    log("not enough funds");
+    callback(false, "not enough funds");
+  }
 }
 
-const axios = require("axios");
+// send all funds from a wallet to an address
+async function sendAllFromWallet(wallet, toAddress, callback) {
+  const balance_raw = await wallet.getBalance();
 
-const getCurrentGasPrices = async () => {
-  let response = await axios.get(
-    "https://ethgasstation.info/json/ethgasAPI.json"
-  );
-  let prices = {
-    low: response.data.safeLow / 10,
-    medium: response.data.average / 10,
-    high: response.data.fast / 10
-  };
+  if (!balance_raw.gt(0)) {
+    log("balance is zero");
+    callback(false, "balance is zero");
+  } else {
+    let gasPrice = await infuraProvider.getGasPrice();
+    let gasLimit = 21000;
+    let value = balance_raw.sub(gasPrice.mul(gasLimit));
 
-  // console.log (`Current ETH Gas Prices (in GWEI):`)
-  // console.log(`Low: ${prices.low} (transaction completes in < 30 minutes)`)
-  // console.log(`Standard: ${prices.medium} (transaction completes in < 5 minutes)`)
-  // console.log(`Fast: ${prices.high} (transaction completes in < 2 minutes)`)
-
-  return prices;
-};
-
-exports.waitForPayment = function(address, callback) {
-  var subscription2 = web3_ws.eth
-    .subscribe("pendingTransactions", function(error, result) {
-      if (error) {
-        console.error(error);
-        callback(false, eror);
-      }
+    if (value.gt(0)) {
+      const result = await wallet.sendTransaction({
+        to: toAddress,
+        gasLimit: gasLimit,
+        gasPrice: gasPrice,
+        value: value
+      });
+      log("result sending eth: ", result);
       callback(true, result);
-      console.log("pending: ", result);
-    })
-    .on("data", function(transaction) {
-      console.log("pending data: ", transaction);
-    });
-};
-
-// const account = web3_ws.eth.accounts.privateKeyToAccount(data.ethWalletPrivKey);
-// const account = web3.eth.accounts.create();
-
-// var subscription = web3_ws.eth.subscribe('logs', {
-//     address: data.ethAddress
-//     // topics: [data.ethAddress]
-// }, function(error, result) {
-//     if (error) console.error("subs error", error)
-//     else console.log("subs result: ", result);
-// })
-// .on("data", function(log){
-//     console.log("eth data: ", log);
-// })
-// .on("changed", function(log){
-//     console.log("changed: ", log)
-// });
-
-// unsubscribes the subscription
-// subscription.unsubscribe(function(error, success){
-//     if(success)
-//         console.log('Successfully unsubscribed!');
-// });
-
-// var BN = web3_ws.utils.BN;
-// var number = new BN('1234').add(new BN('1')).toString();
-// web3_ws.utils.isBN(number);
-// web3_ws.utils.isAddress('0xc1912fee45d61c87cc5ea59dae31190fffff232d');
-// web3_ws.utils.toBN(1234).toString();
-// web3_ws.utils.toBN('1234').add(web3_ws.utils.toBN('1')).toString();
-// web3_ws.utils.toWei('1', 'ether');
-// web3_ws.utils.fromWei('1', 'ether');
+    } else {
+      log("not enough funds for transfer fees");
+      callback(false, "not enough funds for transfer fees");
+    }
+  }
+}
