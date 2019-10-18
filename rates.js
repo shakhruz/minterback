@@ -1,6 +1,8 @@
 // Получение и хранение курсов валют
 //
 //
+import server from "./server";
+
 const eth = require("./eth.js");
 const btc_rate_api = "https://blockchain.info/ticker";
 const minterApiUrl = "https://explorer-api.apps.minter.network/api/";
@@ -36,6 +38,12 @@ function updateRates(callback) {
             _btc_usd = prices.BTC.USD;
             _eth_usd = prices.ETH.USD;
             callback(_btc_usd, _bip_usd_price, _eth_usd);
+            server.broadcast({
+              type: "usdPrices",
+              btc_usd: _btc_usd,
+              eth_usd: _eth_usd,
+              bip_usd: _bip_usd_price
+            });
           })
           .catch(console.error);
 

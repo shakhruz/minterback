@@ -1,4 +1,6 @@
 import app from "./app";
+const _ = require("lodash");
+
 const port = process.env.PORT || "3333";
 app.listen(port);
 console.log(`Listening on port ${port}`);
@@ -31,7 +33,8 @@ setInterval(() => {
 }, 10 * 1000);
 
 // broadcast function
-const broadcast = data => {
+exports.broadcast = function(data) {
+  console.log("broadcast: ", data);
   if (_.isEmpty(data)) {
     return;
   }

@@ -36,6 +36,7 @@
     "ethereumjs-tx": "^2.1.1",
     "ethers": "^4.0.37",
     "express": "^4.17.1",
+    "lodash": "^4.17.15",
     "minter-js-sdk": "^0.20.1",
     "minterjs-wallet": "^4.0.1",
     "mongoose": "^5.7.1",
