@@ -47,6 +47,9 @@ const ContractScheme = new Schema({
   outgoingTx: {
     type: String
   },
+  outgoingTxLink: {
+    type: String
+  },
   state: {
     type: String,
     default: "new"

@@ -1,4 +1,5 @@
 import contractModel from "../models/contractModel.js";
+import server from "../server";
 
 const minter = require("../minter.js");
 const bcoin = require("../bcoin.js");
@@ -55,6 +56,7 @@ exports.createContract = (req, res) => {
       console.log("returning new contract: ", contract);
       newContract.receivingPrivKey = null; // прячем ключ
       res.json(newContract); // возвращаем без ключа
+      server.broadcast({ type: "new_contract", contract: newContract });
 
       // восстанавливаем ключ и продолжаем
       contract.receivingPrivKey = priv_key;
@@ -76,6 +78,7 @@ exports.createContract = (req, res) => {
 
           console.log("returning new contract: ", contract);
           res.json(contract);
+          server.broadcast({ type: "new_contract", contract: newContract });
           startContract(contract);
         });
       });
@@ -97,6 +100,7 @@ exports.createContract = (req, res) => {
           console.log("returning new contract: ", contract);
           newContract.receivingPrivKey = null; // прячем ключ
           res.json(newContract); // возвращаем без ключа
+          server.broadcast({ type: "new_contract", contract: newContract });
 
           // восстанавливаем ключ и продолжаем
           contract.receivingPrivKey = priv_key;
@@ -119,6 +123,7 @@ function startContract(contract) {
       contract.incomingTx = trx.hash;
       saveContract(contract);
       sendAllBIPToReserve(contract);
+      server.broadcast({ type: "got_payment", contract: contract });
       completeContract(contract);
     });
   } else {
@@ -137,6 +142,7 @@ function startContract(contract) {
           contract.fromAddress = details.inputs[0].address;
           contract.incomingTx = details.hash;
           saveContract(contract);
+          server.broadcast({ type: "got_payment", contract: contract });
           completeContract(contract);
         }
       );
@@ -153,6 +159,7 @@ function startContract(contract) {
           eth.sendAllToReserve(contract.receivingPrivKey, () => {
             console.log("sent to reserve");
           });
+          server.broadcast({ type: "got_payment", contract: contract });
           completeContract(contract);
         });
       } else {
@@ -209,11 +216,14 @@ function completeContract(contract) {
             console.log("successfuly sent bcoin: ", arg.hash);
             contract.state = "completed";
             contract.outgoingTx = arg.hash;
+            contract.outgoingTxLink = "https://blockchain.info/tx/" + arh.hash;
             contract.fee_sat = arg.fee;
+            server.broadcast({ type: "completed_contract", contract });
           } else {
             console.log("error sending bcoin: ", arg);
             contract.state = "error";
             contract.message = arg;
+            server.broadcast({ type: "error_contract", contract });
           }
           saveContract(contract);
         }
@@ -270,11 +280,15 @@ function completeContract(contract) {
               console.log("successfuly sent BIP: ", arg);
               contract.state = "completed";
               contract.outgoingTx = arg;
+              contract.outgoingTxLink =
+                "https://explorer.minter.network/transactions/" + arg;
               contract.fee_sat = 0.01;
+              server.broadcast({ type: "completed_contract", contract });
             } else {
               console.log("error sending BIP: ", arg);
               contract.state = "error";
               contract.message = arg;
+              server.broadcast({ type: "error_contract", contract });
             }
             saveContract(contract);
           }
@@ -307,11 +321,15 @@ function completeContract(contract) {
                 console.log("successfuly sent ETH: ", arg);
                 contract.state = "completed";
                 contract.outgoingTx = arg;
+                contract.outgoingTxLink =
+                  "https://explorer.minter.network/transactions/" + arg;
                 contract.fee_sat = 0.01; // TODO get real fee
+                server.broadcast({ type: "completed_contract", contract });
               } else {
                 console.log("error sending ETH: ", arg);
                 contract.state = "error";
                 contract.message = arg;
+                server.broadcast({ type: "error_contract", contract });
               }
               saveContract(contract);
             }
