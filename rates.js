@@ -13,10 +13,11 @@ const cc = require("cryptocompare");
 cc.setApiKey(cmcKey);
 
 // Спрэд - разница между базовой ценой и ценой покупки и ценой продажи 0.01 - 1%
-exports.spread = 0.05;
+let _spread = { BTC: 0.05, ETH: 0.05, USDT: 0.05 };
+exports.spread = _spread;
 
 let _btc_usd = 0;
-let _bip_usd_price = 0;
+let _bip_usd = 0;
 let _eth_usd = 0;
 
 // Как часто будем обновлять курсы - 1000 - 1 сек
@@ -30,20 +31,22 @@ function updateRates(callback) {
     .then(json => {
       // console.log("market data: ", json)
       if (json.data) {
-        _bip_usd_price = json.data.bipPriceUsd;
+        _bip_usd = json.data.bipPriceUsd;
 
         cc.priceMulti(["BTC", "ETH"], ["USD"])
           .then(prices => {
             console.log(prices);
             _btc_usd = prices.BTC.USD;
             _eth_usd = prices.ETH.USD;
-            callback(_btc_usd, _bip_usd_price, _eth_usd);
+            callback(_btc_usd, _bip_usd, _eth_usd);
             server.broadcast({
               type: "usdPrices",
               btc_usd: _btc_usd,
               eth_usd: _eth_usd,
-              bip_usd: _bip_usd_price
+              bip_usd: _bip_usd
             });
+
+            broadcastBipPrices();
           })
           .catch(console.error);
 
@@ -58,6 +61,45 @@ function updateRates(callback) {
         //   .catch(console.error);
       }
     });
+}
+
+function broadcastBipPrices() {
+  const btc_price = _btc_usd / _bip_usd;
+  const btc_buy = btc_price - btc_price * _spread.BTC;
+  const btc_sell = btc_price + btc_price * _spread.BTC;
+  console.log(`btc price: ${btc_price} buy: ${btc_buy} sell: ${btc_sell}`);
+
+  const eth_price = _eth_usd / _bip_usd;
+  const eth_buy = eth_price - eth_price * _spread.ETH;
+  const eth_sell = eth_price + eth_price * _spread.ETH;
+  console.log(`eth price: ${eth_price} buy: ${eth_buy} sell: ${eth_sell}`);
+
+  const usdt_price = 1 / _bip_usd;
+  const usdt_buy = usdt_price - usdt_price * _spread.USDT;
+  const usdt_sell = usdt_price + usdt_price * _spread.USDT;
+  console.log(`usdt price: ${usdt_price} buy: ${usdt_buy} sell: ${usdt_sell}`);
+
+  server.broadcast({
+    type: "bipPrices",
+    BTC: {
+      market: btc_price,
+      buy: btc_buy,
+      sell: btc_sell,
+      spread: _spread.BTC
+    },
+    ETH: {
+      market: eth_price,
+      buy: eth_buy,
+      sell: eth_sell,
+      spread: _spread.ETH
+    },
+    USDT: {
+      market: usdt_price,
+      buy: usdt_buy,
+      sell: usdt_sell,
+      spread: _spread.USDT
+    }
+  });
 }
 
 // обновить котировки в первый раз
@@ -88,7 +130,7 @@ setInterval(() => {
 
 // Цена BIP/USD
 exports.bip_price = function() {
-  return _bip_usd_price;
+  return _bip_usd;
 };
 
 // Цена BTC/USD
