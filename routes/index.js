@@ -14,6 +14,7 @@ export default app => {
   app.route("/rates").get(rates.getAllRates);
 
   app.route("/coins").get(rates.getAllCoins);
+  app.route("/balances").get(rates.getReserveBalances);
 
   app.route("/usd_price").get(rates.usd_price);
 };
