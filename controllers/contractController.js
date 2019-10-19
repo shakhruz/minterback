@@ -191,10 +191,10 @@ function completeContract(contract) {
   if (contract.buy_coin == "BTC") {
     // отправляем BTC
     rates.getRates((btc_price, bip_price, eth_price) => {
-      btc_price = btc_price * (1 / bip_price);
+      btc_price = btc_price / bip_price;
 
       console.log("btc price: ", btc_price);
-      const btc_sell = btc_price + btc_price * rates.spread;
+      const btc_sell = btc_price + btc_price * rates.spread.BTC;
       console.log("btc buy: ", btc_sell);
 
       contract.send_amount = Math.trunc(
@@ -218,12 +218,15 @@ function completeContract(contract) {
             contract.outgoingTx = arg.hash;
             contract.outgoingTxLink = "https://blockchain.info/tx/" + arh.hash;
             contract.fee_sat = arg.fee;
-            server.broadcast({ type: "completed_contract", contract });
+            server.broadcast({
+              type: "completed_contract",
+              contract: contract
+            });
           } else {
             console.log("error sending bcoin: ", arg);
             contract.state = "error";
             contract.message = arg;
-            server.broadcast({ type: "error_contract", contract });
+            server.broadcast({ type: "error_contract", contract: contract });
           }
           saveContract(contract);
         }
@@ -235,10 +238,10 @@ function completeContract(contract) {
       rates.getRates((btc_price, bip_price, eth_price) => {
         if (contract.sell_coin == "BTC") {
           console.log("считаем сколько BIP нужно выплатить за полученные BTC");
-          btc_price = btc_price * (1 / bip_price);
+          btc_price = btc_price / bip_price;
 
           console.log("btc price: ", btc_price);
-          const btc_buy = btc_price - btc_price * rates.spread;
+          const btc_buy = btc_price - btc_price * rates.spread.BTC;
           console.log("btc buy: ", btc_buy);
 
           contract.send_amount = Math.trunc(
@@ -251,9 +254,9 @@ function completeContract(contract) {
             console.log(
               "считаем сколько BIP нужно выплатить за полученные ETH"
             );
-            eth_price = eth_price * (1 / eth_price);
+            eth_price = eth_price / eth_price;
             console.log("eth price: ", eth_price);
-            const eth_buy = eth_price - eth_price * rates.spread;
+            const eth_buy = eth_price - eth_price * rates.spread.ETH;
             console.log("eth buy: ", eth_buy);
 
             contract.send_amount = Math.trunc(
@@ -283,12 +286,15 @@ function completeContract(contract) {
               contract.outgoingTxLink =
                 "https://explorer.minter.network/transactions/" + arg;
               contract.fee_sat = 0.01;
-              server.broadcast({ type: "completed_contract", contract });
+              server.broadcast({
+                type: "completed_contract",
+                contract: contract
+              });
             } else {
               console.log("error sending BIP: ", arg);
               contract.state = "error";
               contract.message = arg;
-              server.broadcast({ type: "error_contract", contract });
+              server.broadcast({ type: "error_contract", contract: contract });
             }
             saveContract(contract);
           }
@@ -298,10 +304,10 @@ function completeContract(contract) {
       if (contract.buy_coin == "ETH") {
         console.log("sending ETH");
         rates.getRates((btc_price, bip_price, eth_price) => {
-          eth_price = eth_price * (1 / bip_price);
+          eth_price = eth_price / bip_price;
 
           console.log("eth price: ", eth_price);
-          const eth_buy = eth_price - eth_price * rates.spread;
+          const eth_buy = eth_price - eth_price * rates.spread.ETH;
           console.log("eth buy: ", eth_buy);
 
           contract.send_amount = contract.receivedCoins / eth_buy;
