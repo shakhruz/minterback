@@ -84,15 +84,42 @@ bot.hears("Информация", (ctx) => {
 })
 
 bot.command("pause", (ctx) => {
-    console.log("pause exchange")
-    contractController.setPaused(true);
-    ctx.reply("обменник на паузе")
+    if (isAdmin(ctx.from.username)) {
+        console.log("pause exchange")
+        contractController.setPaused(true);
+        ctx.reply("обменник на паузе")
+    }
 })
 
 bot.command("unpause", (ctx) => {
-    console.log("unpause exchange")
-    contractController.setPaused(false);
-    ctx.reply("обменник снят с паузы")
+    if (isAdmin(ctx.from.username)) {
+        console.log("unpause exchange")
+        contractController.setPaused(false);
+        ctx.reply("обменник снят с паузы")
+    }
+})
+
+bot.hears(/\/bip_price.+/, ctx => {
+    if (isAdmin(ctx.from.username)) {
+        let args = ctx.message.text.split(' ')
+        if (args.length > 1 && args[1]) {
+            const price = parseFloat(args[1])
+            if (price > 0 && price < 1) {
+                console.log("Меняем цену на BIP: ", price)
+                rates.setBIPPrice(price)
+                rates.setAutoUpdate(false)
+                ctx.reply("Ручное обновление цены на BIP, цена BIP: " + price)
+            }
+        }
+    }
+})
+
+bot.command("auto_price", (ctx) => {
+    if (isAdmin(ctx.from.username)) {
+        console.log("set auto update for price")
+        rates.setAutoUpdate(true);
+        ctx.reply("Авто обновление цены на BIP")
+    }
 })
 
 function showBalance(ctx) {

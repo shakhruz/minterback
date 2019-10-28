@@ -17,6 +17,17 @@ let _btc_usd = 0;
 let _bip_usd = 0;
 let _eth_usd = 0;
 
+let auto_update = true;
+
+exports.setAutoUpdate = function (newValue) {
+  auto_update = newValue
+}
+
+exports.setBIPPrice = function (newPrice) {
+  console.log("set bip price to: ", newPrice)
+  _bip_usd = newPrice
+}
+
 // Как часто будем обновлять курсы - 1000 - 1 сек
 const updateRatesInterval = 60 * 1000;
 
@@ -112,16 +123,18 @@ updateRates((btc_price, bip_price, eth_price) => {
 
 // обновлять котировки регулярно
 setInterval(() => {
-  updateRates((btc_price, bip_price, eth_price) => {
-    console.log(
-      "btc price:",
-      btc_price,
-      "bip price: ",
-      bip_price,
-      "eth price: ",
-      eth_price
-    );
-  });
+  if (auto_update) {
+    updateRates((btc_price, bip_price, eth_price) => {
+      // console.log(
+      //   "btc price:",
+      //   btc_price,
+      //   "bip price: ",
+      //   bip_price,
+      //   "eth price: ",
+      //   eth_price
+      // );
+    });
+  }
 }, updateRatesInterval);
 
 // Цена BIP/USD
