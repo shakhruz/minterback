@@ -28,6 +28,19 @@ exports.setBIPPrice = function (newPrice) {
   _bip_usd = newPrice
 }
 
+exports.setSpread = function (btc_spread, eth_spread) {
+  _spread = { BTC: btc_spread, ETH: eth_spread, USDT: _spread.USDT }
+}
+
+exports.setBTCSpread = function (btc_spread) {
+  _spread = { BTC: btc_spread, ETH: _spread.ETH, USDT: _spread.USDT }
+}
+
+exports.setETHSpread = function (eth_spread) {
+  _spread = { BTC: _spread.BTC, ETH: eth_spread, USDT: _spread.USDT }
+}
+
+
 // Как часто будем обновлять курсы - 1000 - 1 сек
 const updateRatesInterval = 60 * 1000;
 

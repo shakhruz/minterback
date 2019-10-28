@@ -122,6 +122,35 @@ bot.command("auto_price", (ctx) => {
     }
 })
 
+bot.hears(/\/btc_spread.+/, ctx => {
+    if (isAdmin(ctx.from.username)) {
+        let args = ctx.message.text.split(' ')
+        if (args.length > 1 && args[1]) {
+            const spread = parseFloat(args[1])
+            if (spread > 0 && spread < 1) {
+                console.log("Меняем спрэд на BTC: ", spread)
+                rates.setBTCSpread(spread)
+                ctx.reply("Спрэд на BTC изменен на: " + spread)
+            }
+        }
+    }
+})
+
+bot.hears(/\/eth_spread.+/, ctx => {
+    if (isAdmin(ctx.from.username)) {
+        let args = ctx.message.text.split(' ')
+        if (args.length > 1 && args[1]) {
+            const spread = parseFloat(args[1])
+            if (spread > 0 && spread < 1) {
+                console.log("Меняем спрэд на ETH: ", spread)
+                rates.setETHSpread(spread)
+                ctx.reply("Спрэд на ETH изменен на: " + spread)
+            }
+        }
+    }
+})
+
+
 function showBalance(ctx) {
     console.log("Балансы счетов");
     if (isAdmin(ctx.from.username)) {
