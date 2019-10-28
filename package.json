@@ -43,6 +43,9 @@
     "node-fetch": "^2.6.0",
     "ololog": "^1.1.149",
     "web3": "^1.2.1",
-    "ws": "^7.1.2"
+    "ws": "^7.1.2",
+    "telegraf": "^3.32.0",
+    "greenlock-express": "^2.7.17",
+    "greenlock-store-fs": "^3.0.2"
   }
 }

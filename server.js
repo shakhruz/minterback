@@ -5,6 +5,8 @@ const port = process.env.PORT || "3333";
 app.listen(port);
 console.log(`Listening on port ${port}`);
 
+const bot = require('./bot.js')
+
 const WebSocketServer = require("ws").Server;
 //const wss = new WebSocketServer({ server: server });
 const wss = new WebSocketServer({ port: 9090 });
@@ -33,7 +35,7 @@ setInterval(() => {
 }, 10 * 1000);
 
 // broadcast function
-exports.broadcast = function(data) {
+exports.broadcast = function (data) {
   console.log("broadcast: ", data);
   if (_.isEmpty(data)) {
     return;

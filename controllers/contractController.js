@@ -20,7 +20,7 @@ exports.getContract = (req, res) => {
   });
 };
 
-// Возвращаем все контракты
+// Возвращаем все завершенные контракты
 exports.getAllContracts = (req, res) => {
   contractModel.find({ state: "completed" }, (err, contracts) => {
     if (err) {

@@ -64,6 +64,54 @@ GET /usd_price - курсы валют по отношению к доллару
 2. Websocket сервер:
 запускается на порту 9090
 
+отправляет следующие события:
+
+* обновления курсов к доллару
+
+{
+    type: "usdPrices",
+    btc_usd: _btc_usd,
+    eth_usd: _eth_usd,
+    bip_usd: _bip_usd
+}
+
+* обновления к курсу BIP:
+
+{
+    type: "bipPrices",
+    BTC: {
+      market: btc_price,
+      buy: btc_buy,
+      sell: btc_sell,
+      spread: _spread.BTC
+    },
+    ETH: {
+      market: eth_price,
+      buy: eth_buy,
+      sell: eth_sell,
+      spread: _spread.ETH
+    },
+    USDT: {
+      market: usdt_price,
+      buy: usdt_buy,
+      sell: usdt_sell,
+      spread: _spread.USDT
+    }
+}
+
+* новый контракт:
+{ type: "new_contract", contract: newContract }
+
+* платеж по контракту получен:
+{ type: "got_payment", contract: contract }
+
+* контракт исполнен:
+{
+    type: "completed_contract",
+    contract: contract
+}
+* произошла ошибки при исполнении контракта
+{ type: "error_contract", contract }
 
 
 === 3. Структура и содержание сервера ===
@@ -124,8 +172,8 @@ minter.js
 controllers/contractController.js
 
 getContract - возвращает один контракт
-getAllContracts - возвращает все контракты
+getAllContracts - возвращает все завершенные контракты
 createContract - создает новый контракт
-{
-    
-}
+saveContract - сохраняет контракт в базе
+startContract - запускает контракт, ждет оплату
+completeContract - исполняет контракт (отправляет обещанные токены)
