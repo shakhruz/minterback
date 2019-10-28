@@ -1,3 +1,5 @@
+// API методы для работы с курсами
+
 const rates = require("../rates.js");
 const minter = require("../minter.js");
 const data = require("../data.js");

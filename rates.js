@@ -1,16 +1,13 @@
 // Получение и хранение курсов валют
-//
-//
 import server from "./server";
 
 const eth = require("./eth.js");
-const btc_rate_api = "https://blockchain.info/ticker";
-const minterApiUrl = "https://explorer-api.apps.minter.network/api/";
-const cmcKey =
-  "ea2975d93d3e53fe9f6f3f3311fbea9aa779cde01603275fea9eeab104240764";
-
+const data = require("./data.js");
 const cc = require("cryptocompare");
-cc.setApiKey(cmcKey);
+
+const minterApiUrl = "https://explorer-api.apps.minter.network/api/";
+
+cc.setApiKey(data.compareKey);
 
 // Спрэд - разница между базовой ценой и ценой покупки и ценой продажи 0.01 - 1%
 let _spread = { BTC: 0.05, ETH: 0.05, USDT: 0.05 };
@@ -49,16 +46,6 @@ function updateRates(callback) {
             broadcastBipPrices();
           })
           .catch(console.error);
-
-        // Курс BTC/USD от blockchain.com
-        // fetch(btc_rate_api)
-        //   .then(res => res.json())
-        //   .then(json => {
-        //     //   console.log("btc rate: ", json.USD.last)
-        //     _btc_usd = json.USD.last;
-        //     callback(_btc_usd, _bip_usd_price);
-        //   })
-        //   .catch(console.error);
       }
     });
 }
@@ -129,21 +116,21 @@ setInterval(() => {
 }, updateRatesInterval);
 
 // Цена BIP/USD
-exports.bip_price = function() {
+exports.bip_price = function () {
   return _bip_usd;
 };
 
 // Цена BTC/USD
-exports.btc_price = function() {
+exports.btc_price = function () {
   return _btc_usd;
 };
 
 // Цена BTC/USD
-exports.eth_price = function() {
+exports.eth_price = function () {
   return _eth_usd;
 };
 
 // Обновить все курсы
-exports.getRates = function(callback) {
+exports.getRates = function (callback) {
   updateRates(callback);
 };

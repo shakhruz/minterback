@@ -1,3 +1,4 @@
+// Управление контрактами 
 import contractModel from "../models/contractModel.js";
 import server from "../server";
 
@@ -111,20 +112,22 @@ exports.createContract = (req, res) => {
   }
 };
 
-// Ждем платеж по контракт чтобы начать его исполнение
+// Ждем платеж по контракту чтобы начать его исполнение
 function startContract(contract) {
   console.log("process contract: ", contract);
   if (contract.sell_coin == "BIP") {
     minter.waitForBIPPayment(contract.receivingAddress, trx => {
-      console.log("got BIP payment: ", trx);
-      contract.receivedCoins = trx.data.value;
-      contract.state = "payment received";
-      contract.fromAddress = trx.from;
-      contract.incomingTx = trx.hash;
-      saveContract(contract);
-      sendAllBIPToReserve(contract);
-      server.broadcast({ type: "got_payment", contract: contract });
-      completeContract(contract);
+      if (trx) {
+        console.log("got BIP payment: ", trx);
+        contract.receivedCoins = trx.data.value;
+        contract.state = "payment received";
+        contract.fromAddress = trx.from;
+        contract.incomingTx = trx.hash;
+        saveContract(contract);
+        sendAllBIPToReserve(contract);
+        server.broadcast({ type: "got_payment", contract: contract });
+        completeContract(contract);
+      }
     });
   } else {
     if (contract.sell_coin == "BTC") {

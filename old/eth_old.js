@@ -1,5 +1,5 @@
 const Web3 = require("web3");
-const data = require("./data");
+const data = require("../data");
 
 const EthereumTx = require("ethereumjs-tx").Transaction;
 const log = require("ololog").configure({ time: true });
@@ -74,7 +74,7 @@ infuraProvider.on(secondMnemonicWallet.address, balance => {
   }
 });
 
-usdt_data = require("./usdt_data.js");
+usdt_data = require("../usdt_data.js");
 
 let contract = new ethers.Contract(
   usdt_data.usdtAddress,
@@ -100,7 +100,7 @@ let contract = new ethers.Contract(
 let etherscanProvider = new ethers.providers.EtherscanProvider();
 
 // Getting the current Ethereum price
-etherscanProvider.getEtherPrice().then(function(price) {
+etherscanProvider.getEtherPrice().then(function (price) {
   console.log("Ether price in USD: " + price);
 });
 
@@ -217,13 +217,13 @@ async function sweep(privateKey, newAddress) {
   console.log("Sent in Transaction: " + tx.hash);
 }
 
-exports.generateWallet = function() {
+exports.generateWallet = function () {
   const account = web3_ws.eth.accounts.create();
   console.log("new ETH wallet: ", account.address);
   return account;
 };
 
-exports.getBalance = function(address, callback) {
+exports.getBalance = function (address, callback) {
   web3.eth.getBalance(address).then(result => {
     const balance = web3.utils.fromWei(result, "ether");
     // console.log("eth balance: " + balance + " ETH")
@@ -231,7 +231,7 @@ exports.getBalance = function(address, callback) {
   });
 };
 
-exports.sendToReserve = function(priv_key, from, amount_eth, callback) {
+exports.sendToReserve = function (priv_key, from, amount_eth, callback) {
   const value_wei = web3.utils.toWei(
     web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
     "gwei"
@@ -240,7 +240,7 @@ exports.sendToReserve = function(priv_key, from, amount_eth, callback) {
   sendTransaction(priv_key, from, data.ethAddress, value_wei, callback);
 };
 
-exports.sendFromReserve = function(to, amount_eth, callback) {
+exports.sendFromReserve = function (to, amount_eth, callback) {
   const value_wei = web3.utils.toWei(
     web3.utils.toBN(Number(amount_eth.toFixed(9)) * 1000000000),
     "gwei"
@@ -284,15 +284,15 @@ function sendTransaction(privateKey, from, to, value_wei, callback) {
 
         web3.eth
           .sendSignedTransaction("0x" + serializedTransaction.toString("hex"))
-          .on("transactionHash", function(hash) {
+          .on("transactionHash", function (hash) {
             console.log("tx hash: ", hash);
             callback(true, `Транзакция отправлена: ${hash}`);
           })
-          .on("receipt", function(receipt) {
+          .on("receipt", function (receipt) {
             console.log("tx receipt: ", receipt);
             callback(true, `Транзакция принята: ${receipt}`);
           })
-          .on("confirmation", function(confirmationNumber, receipt) {
+          .on("confirmation", function (confirmationNumber, receipt) {
             console.log("tx confirmation: ", confirmationNumber, receipt);
             callback(
               true,
@@ -326,9 +326,9 @@ const getCurrentGasPrices = async () => {
   return prices;
 };
 
-exports.waitForPayment = function(address, callback) {
+exports.waitForPayment = function (address, callback) {
   var subscription2 = web3_ws.eth
-    .subscribe("pendingTransactions", function(error, result) {
+    .subscribe("pendingTransactions", function (error, result) {
       if (error) {
         console.error(error);
         callback(false, eror);
@@ -336,7 +336,7 @@ exports.waitForPayment = function(address, callback) {
       callback(true, result);
       console.log("pending: ", result);
     })
-    .on("data", function(transaction) {
+    .on("data", function (transaction) {
       console.log("pending data: ", transaction);
     });
 };

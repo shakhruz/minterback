@@ -1,7 +1,4 @@
 // Взаимодействие с Minter блокчейном
-//
-//
-
 const fetch = require("node-fetch");
 const minterWallet = require("minterjs-wallet");
 const minterLib = require("minter-js-sdk");
@@ -14,7 +11,7 @@ import { walletFromMnemonic } from "minterjs-wallet";
 const wallet_reserve = walletFromMnemonic(data.BIPReserveMnemonic);
 
 // Сгенерировать новый адрес и кошелек минтер
-exports.generateWallet = function() {
+exports.generateWallet = function () {
   const wallet = minterWallet.generateWallet();
   const address = wallet.getAddressString();
   const priv_key = wallet.getPrivateKeyString();
@@ -22,7 +19,7 @@ exports.generateWallet = function() {
 };
 
 // Ждет приход денег на указанный адрес и вызывает callback
-exports.waitForBIPPayment = function(address, callback) {
+exports.waitForBIPPayment = function (address, callback) {
   console.log("waiting for a payment on address " + address);
   let tries = 60 * 60;
   let interval = setInterval(() => {
@@ -46,12 +43,15 @@ exports.waitForBIPPayment = function(address, callback) {
       });
 
     tries -= 1;
-    if (tries < 1) clearInterval(interval);
+    if (tries < 1) {
+      callback(false)
+      clearInterval(interval);
+    }
   }, 1000);
 };
 
 // Получаем все балансы адреса
-exports.getBalances = function(address, callback) {
+exports.getBalances = function (address, callback) {
   console.log("get balance for address " + address);
   fetch(`${bip_api_url}v1/addresses/${address}`)
     .then(res => res.json())
@@ -63,7 +63,7 @@ exports.getBalances = function(address, callback) {
 };
 
 // Возвращает баланс BIP токенов по адресу
-exports.getBIPBalance = function(address, callback) {
+exports.getBIPBalance = function (address, callback) {
   console.log("get BIP balance for " + address);
   this.getBalances(address, balances => {
     let bipBalance = 0;
@@ -77,13 +77,13 @@ exports.getBIPBalance = function(address, callback) {
 };
 
 // Отправляем токены из резервного кошелька на адрес
-exports.sendFromReserve = function(amount, address, callback) {
+exports.sendFromReserve = function (amount, address, callback) {
   console.log("send ", amount, " to ", address);
   sendBIP(wallet_reserve.getPrivateKeyString(), address, amount, callback);
 };
 
 // Отправляем все BIP токены что есть по адресу на разервный кошелек
-exports.sendAllToReserve = function(from, priv_key, callback) {
+exports.sendAllToReserve = function (from, priv_key, callback) {
   this.getBIPBalance(from, balance_bip => {
     if (balance_bip > 0.01) {
       balance_bip -= 0.01;

@@ -1,9 +1,8 @@
+// Взаимодействие с блокчейном Ethereum
 const data = require("./data");
 const log = require("ololog").configure({ time: true });
 const ansi = require("ansicolor").nice;
-
 const ethers = require("ethers");
-
 const infuraId = "7a2c840b17db4133aa4a5450464f6de2";
 const infuraSecret = "04a628a7841148ae85f675e774ad3a6a";
 const infureEndpoint = "mainnet.infura.io/v3/7a2c840b17db4133aa4a5450464f6de2";
@@ -12,14 +11,14 @@ let infuraProvider = new ethers.providers.InfuraProvider("mainnet");
 const wallet_reserve = ethers.Wallet.fromMnemonic(data.ethWalletSeed);
 
 // Сгенерировать новый адрес и кошелек ETH
-exports.generateWallet = function() {
+exports.generateWallet = function () {
   const wallet = ethers.Wallet.createRandom();
   return { address: wallet.address, priv_key: wallet.privateKey };
 };
 
 // Ждет приход денег на указанный адрес и вызывает callback
 // изначально на балансе не должно быть денег, желательно использовать новый адрес
-exports.waitForPayment = function(address, callback) {
+exports.waitForPayment = function (address, callback) {
   log("waiting for a payment on address " + address);
   infuraProvider.on(address, balance => {
     log("updated balance: " + balance + " on address: " + address);
@@ -32,7 +31,7 @@ exports.waitForPayment = function(address, callback) {
 };
 
 // Получаем все балансы адреса
-exports.getBalance = function(address, callback) {
+exports.getBalance = function (address, callback) {
   log("get balance for address " + address);
   infuraProvider.getBalance(address).then(balance => {
     let etherString = ethers.utils.formatEther(balance);
@@ -42,13 +41,13 @@ exports.getBalance = function(address, callback) {
 };
 
 // Отправляем токены из резервного кошелька на адрес
-exports.sendFromReserve = function(amount, address, callback) {
+exports.sendFromReserve = function (amount, address, callback) {
   log("send " + amount + " to " + address + " from reserve");
   sendETH(wallet_reserve, address, amount.toString(), callback);
 };
 
 // Отправляем все BIP токены что есть по адресу на разервный кошелек
-exports.sendAllToReserve = function(priv_key, callback) {
+exports.sendAllToReserve = function (priv_key, callback) {
   const wallet = new ethers.Wallet(priv_key, infuraProvider);
   sendAllFromWallet(wallet, wallet_reserve.address, callback);
 };
