@@ -1,6 +1,7 @@
 // Telegram bot
 console.log("bot.js")
 const data = require('./data')
+const ratesController = require('./controllers/ratesController.js')
 
 const Telegraf = require('telegraf')
 const Markup = require("telegraf/markup")
@@ -66,37 +67,35 @@ bot.start(ctx => {
     }
 
     if (isAdmin(ctx.from.username)) {
-        let keyboard_buttons = Markup.keyboard([buy_token_menu, sell_token_menu, wallet_menu, help_menu]).oneTime().resize().extra();
+        let keyboard_buttons = Markup.keyboard(["Pause/Unpause", "Balances"]).oneTime().resize().extra();
         ctx.replyWithMarkdown("Приветствуем Вас в MINTERX!", keyboard_buttons)
     }
 })
 
-// Визарды
-// const buy_crypto_wizard = require('./wizards/buy_crypto_wizard.js')
-// const stage = new Stage([buy_crypto_wizard.buy_crypto], { ttl: 300 });
 bot.use(session())
-// bot.use(stage.middleware())
-
-// bot.action("buy_crypto", enter("buy_crypto"))
 bot.command("balance", (ctx) => {
+    showBalance(ctx)
+})
+bot.hears("Balances", (ctx) => {
+    showBalance(ctx)
+})
+
+function showBalance(ctx) {
+    console.log("Балансы счетов");
     if (isAdmin(ctx.from.username)) {
         ctx.reply("Баланс счетов:")
+        ratesController.getAllBalances((result) => {
+            ctx.reply(`BIP: ${result.BIP}\nBTC: ${result.BTC}\nETH: ${result.ETH}`)
+        })
+        const bip_prices = rates.getBIPPrices()
+        ctx.reply(`bip prices: ${JSON.stringify(bip_prices, null, 2)}`)
+        const usd_prices = rates.getUSDPrices();
+        ctx.reply(`usd prices: ${JSON.stringify(usd_prices, null, 2)}`)
     }
-})
-// bot.hears("buy", enter("buy_crypto"))
-// bot.hears("balance", (ctx) => {
-//     console.log("Балансы счетов");
-// })
-// bot.hears("💵🏎️✈️👨‍👧‍👧🌴 Продать БИТКОИН", (ctx) => {
-//     sell_crypto(ctx)
-// })
-
-// bot.on('sticker', (ctx) => {
-//     ctx.reply(`Код стикера - ${ctx.message.sticker.file_id}`)
-// });
+}
 
 function isAdmin(username) {
-    return admins.indexOf(username) >= 0
+    return data.admins.indexOf(username) >= 0
 }
 
 function sendToAdmins(message, markdown = false) {
@@ -127,3 +126,17 @@ module.exports = {
     sendError,
     isAdmin
 }
+
+// Визарды
+// const buy_crypto_wizard = require('./wizards/buy_crypto_wizard.js')
+// const stage = new Stage([buy_crypto_wizard.buy_crypto], { ttl: 300 });
+// bot.use(stage.middleware())
+// bot.action("buy_crypto", enter("buy_crypto"))
+// bot.hears("buy", enter("buy_crypto"))
+// bot.hears("💵🏎️✈️👨‍👧‍👧🌴 Продать БИТКОИН", (ctx) => {
+//     sell_crypto(ctx)
+// })
+
+// bot.on('sticker', (ctx) => {
+//     ctx.reply(`Код стикера - ${ctx.message.sticker.file_id}`)
+// });

@@ -8,6 +8,15 @@ const eth = require("../eth.js");
 
 // Возвращает все курсы валют
 exports.getAllRates = (req, res) => {
+  const bipPrices = getBIPPrices()
+  res.json(bipPrices);
+};
+
+exports.getBIPPrices = function () {
+  return getBIPPrices();
+}
+
+function getBIPPrices() {
   const btc_price = rates.btc_price() / rates.bip_price();
   const btc_buy = btc_price - btc_price * rates.spread["BTC"];
   const btc_sell = btc_price + btc_price * rates.spread["BTC"];
@@ -43,8 +52,8 @@ exports.getAllRates = (req, res) => {
       spread: rates.spread["USDT"]
     }
   };
-  res.json(bipPrices);
-};
+  return bipPrices;
+}
 
 // Возвращает все возможные токены для обмена
 exports.getAllCoins = (req, res) => {
@@ -54,8 +63,7 @@ exports.getAllCoins = (req, res) => {
   res.json(allCoins);
 };
 
-// Возвращает все возможные токены для обмена
-exports.getReserveBalances = (req, res) => {
+function getBalances(callback) {
   minter.getBIPBalance(data.BIPReserveAddress, BIPBalance => {
     bcoin.getBalance(data.BTCReserveAccountName, BTCBalance => {
       eth.getBalance(data.ethAddress, ETHBalance => {
@@ -65,11 +73,23 @@ exports.getReserveBalances = (req, res) => {
           ETH: ETHBalance,
           USDT: 0
         };
-        res.json(balances);
+        callback(balances);
       });
     });
   });
+}
+
+exports.getAllBalances = function (callback) {
+  getBalances(callback)
+}
+
+// Возвращает все возможные токены для обмена
+exports.getReserveBalances = (req, res) => {
+  getBalances((balance) => {
+    res.json(balance)
+  })
 };
+
 
 // Возвращает курсы по отношению к доллару
 exports.usd_price = (req, res) => {

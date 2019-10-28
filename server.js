@@ -36,7 +36,7 @@ setInterval(() => {
 
 // broadcast function
 exports.broadcast = function (data) {
-  console.log("broadcast: ", data);
+  // console.log("broadcast: ", data);
   if (_.isEmpty(data)) {
     return;
   }
