@@ -41,6 +41,10 @@ exports.broadcast = function (data) {
     return;
   }
 
+  if (data.type != "bipPrices" && data.type != "usdPrices") {
+    bot.sendToAdmins(`update: ${JSON.stringify(data, null, 2)}`)
+  }
+
   const payload = JSON.stringify(data);
 
   wss.clients.forEach(ws => {

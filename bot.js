@@ -2,6 +2,7 @@
 console.log("bot.js")
 const data = require('./data')
 const ratesController = require('./controllers/ratesController.js')
+const contractController = require('./controllers/contractController.js')
 
 const Telegraf = require('telegraf')
 const Markup = require("telegraf/markup")
@@ -67,17 +68,31 @@ bot.start(ctx => {
     }
 
     if (isAdmin(ctx.from.username)) {
-        let keyboard_buttons = Markup.keyboard(["Pause/Unpause", "Balances"]).oneTime().resize().extra();
+        let keyboard_buttons = Markup.keyboard(["Информация"]).oneTime().resize().extra();
         ctx.replyWithMarkdown("Приветствуем Вас в MINTERX!", keyboard_buttons)
+    } else {
+        ctx.reply("бот в разработке...")
     }
 })
 
 bot.use(session())
-bot.command("balance", (ctx) => {
+bot.command("info", (ctx) => {
     showBalance(ctx)
 })
-bot.hears("Balances", (ctx) => {
+bot.hears("Информация", (ctx) => {
     showBalance(ctx)
+})
+
+bot.command("pause", (ctx) => {
+    console.log("pause exchange")
+    contractController.setPaused(true);
+    ctx.reply("обменник на паузе")
+})
+
+bot.command("unpause", (ctx) => {
+    console.log("unpause exchange")
+    contractController.setPaused(false);
+    ctx.reply("обменник снят с паузы")
 })
 
 function showBalance(ctx) {

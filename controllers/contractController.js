@@ -8,6 +8,18 @@ const rates = require("../rates.js");
 const data = require("../data.js");
 const eth = require("../eth.js");
 
+const bot = require('../bot.js')
+
+let _paused = false
+
+exports.paused = function () {
+  return _paused
+}
+
+exports.setPaused = function (newValue) {
+  _paused = newValue
+}
+
 // Возвращаем все данные по контракту по id
 exports.getContract = (req, res) => {
   contractModel.findById(req.params.contractId, (err, contract) => {
@@ -34,6 +46,10 @@ exports.getAllContracts = (req, res) => {
 // Создаем новый контракт на обмен
 exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
+  if (_paused) {
+    server.broadcast({ type: "error_contract", contract: newContract });
+    return
+  }
   console.log("new contract: ", newContract);
   newContract.buy_amount = 0;
   newContract.btc_usd = rates.btc_price();
