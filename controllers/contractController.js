@@ -43,6 +43,28 @@ exports.getAllContracts = (req, res) => {
   });
 };
 
+function generateWallet(coin, callback) {
+  console.log("generate new " + coin + " wallet");
+  switch (coin) {
+    case "BIP":
+      const wallet = minter.generateWallet();
+      callback({ address: wallet.address, private_key: wallet.priv_key })
+      break;
+    case "BTC":
+      bcoin.generateReserveAddress(input_address => {
+        callback({ address: input_address, private_key: "" })
+      });
+      break;
+    case "ETH":
+      const eth_wallet = eth.generateWallet();
+      callback({ address: eth_wallet.address, private_key: eth_wallet.priv_key })
+      break;
+    default:
+      console.log("unknown coin " + coin);
+      break;
+  }
+}
+
 // Создаем новый контракт на обмен
 exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
@@ -51,108 +73,65 @@ exports.createContract = (req, res) => {
     server.broadcast({ type: "error_contract", contract: newContract });
     return
   }
-  console.log("new contract: ", newContract);
   newContract.buy_amount = 0;
   newContract.rates.btc_usd = rates.btc_price();
   newContract.rates.eth_usd = rates.eth_price();
   newContract.rates.bip_usd = rates.bip_price();
   newContract.spreads = rates.getSpreads();
+  console.log("new contract: ", newContract);
 
-  switch (newContract.sell_coin) {
-    case "BIP":
-      console.log("generate BIP address to receive coins");
-      const wallet = minter.generateWallet();
-      console.log("wallet: ", wallet);
-      newContract.receivingAddress = wallet.address;
-      newContract.receivingPrivKey = wallet.priv_key;
-      const priv_key = newContract.receivingPrivKey;
-      newContract.state = "waiting for payment";
+  calculateContractPrice(newContract, contract => {
+    generateWallet(contract.sell_coin, wallet => {
+      contract.receivingAddress = wallet.address;
+      contract.receivingPrivKey = "";
+      contract.state = "waiting for payment";
 
-      newContract.save((err, contract) => {
+      contract.save((err, contract) => {
         if (err) {
           res.send(err);
         }
 
-        console.log("returning new contract: ", contract);
-        newContract.receivingPrivKey = null; // прячем ключ
-        res.json(newContract); // возвращаем без ключа
-        server.broadcast({ type: "new_contract", contract: newContract });
+        contract.receivingPrivKey = null; // прячем ключ
+        res.json(contract); // возвращаем без ключа
+        server.broadcast({ type: "new_contract", contract: contract });
 
         // восстанавливаем ключ и продолжаем
-        contract.receivingPrivKey = priv_key;
+        contract.receivingPrivKey = wallet.private_key;
         startContract(contract);
       });
-      break;
-    case "BTC":
-      console.log("generating new BTC address to receive payment");
-      bcoin.generateReserveAddress(input_address => {
-        console.log("new address: ", input_address);
-        newContract.receivingAddress = input_address;
-        newContract.receivingPrivKey = "";
-        newContract.state = "waiting for payment";
-
-        newContract.save((err, contract) => {
-          if (err) {
-            res.send(err);
-          }
-
-          console.log("returning new contract: ", contract);
-          res.json(contract);
-          server.broadcast({ type: "new_contract", contract: newContract });
-          startContract(contract);
-        });
-      });
-      break;
-    case "ETH":
-      console.log("generating new ETH address to receive payment");
-      const eth_wallet = eth.generateWallet();
-      console.log("wallet: ", eth_wallet);
-      newContract.receivingAddress = eth_wallet.address;
-      newContract.receivingPrivKey = eth_wallet.priv_key;
-      const priv_key = newContract.receivingPrivKey;
-      newContract.state = "waiting for payment";
-
-      newContract.save((err, contract) => {
-        if (err) {
-          res.send(err);
-        }
-
-        console.log("returning new contract: ", contract);
-        newContract.receivingPrivKey = null; // прячем ключ
-        res.json(newContract); // возвращаем без ключа
-        server.broadcast({ type: "new_contract", contract: newContract });
-
-        // восстанавливаем ключ и продолжаем
-        contract.receivingPrivKey = priv_key;
-        startContract(contract);
-      });
-      break;
-    default:
-      newContract.message = "Unknown payment token";
-      server.broadcast({ type: "error_contract", contract: newContract });
-      break;
-  }
+    })
+  })
 };
 
 // Ждем платеж по контракту чтобы начать его исполнение
 function startContract(contract) {
   console.log("process contract: ", contract);
-  if (contract.sell_coin == "BIP") {
-    minter.waitForBIPPayment(contract.receivingAddress, trx => {
-      if (trx) {
-        console.log("got BIP payment: ", trx);
-        contract.receivedCoins = trx.data.value;
-        contract.state = "payment received";
-        contract.fromAddress = trx.from;
-        contract.incomingTx = trx.hash;
-        saveContract(contract);
-        sendAllBIPToReserve(contract);
-        server.broadcast({ type: "got_payment", contract: contract });
-        completeContract(contract);
-      }
-    });
-  } else {
-    if (contract.sell_coin == "BTC") {
+  switch (contract.sell_coin) {
+    case "BIP":
+      minter.waitForBIPPayment(contract.receivingAddress, trx => {
+        if (trx) {
+          console.log("got BIP payment: ", trx);
+          contract.receivedCoins = trx.data.value;
+          contract.state = "payment received";
+          contract.fromAddress = trx.from;
+          contract.incomingTx = trx.hash;
+          saveContract(contract);
+
+          // отправляем все бипы с транзитного адреса на основной
+          minter.sendAllToReserve(
+            contract.receivingAddress,
+            contract.receivingPrivKey,
+            result => {
+              console.log("sent all to reserve: ", result);
+            }
+          );
+
+          server.broadcast({ type: "got_payment", contract: contract });
+          completeContract(contract);
+        }
+      });
+      break;
+    case "BTC":
       console.log(
         "now wait for BTC payment to address ",
         contract.receivingAddress
@@ -171,63 +150,89 @@ function startContract(contract) {
           completeContract(contract);
         }
       );
-    } else {
-      if (contract.sell_coin == "ETH") {
-        console.log("now wait for ETH payment...");
-        eth.waitForPayment(contract.receivingAddress, balance => {
-          console.log("got ETH payment: ", balance);
-          contract.receivedCoins = balance;
-          contract.state = "payment received";
-          contract.fromAddress = "";
-          contract.incomingTx = "";
-          saveContract(contract);
-          eth.sendAllToReserve(contract.receivingPrivKey, () => {
-            console.log("sent to reserve");
-          });
-          server.broadcast({ type: "got_payment", contract: contract });
-          completeContract(contract);
+      break;
+    case "ETH":
+      console.log("now wait for ETH payment...");
+      eth.waitForPayment(contract.receivingAddress, balance => {
+        console.log("got ETH payment: ", balance);
+        contract.receivedCoins = balance;
+        contract.state = "payment received";
+        contract.fromAddress = "";
+        contract.incomingTx = "";
+        saveContract(contract);
+        eth.sendAllToReserve(contract.receivingPrivKey, () => {
+          console.log("sent to reserve");
         });
-      } else {
-        console.log(
-          "принимаем только BIP, BTC, ETH",
-          contract.sell_coin,
-          " не умеем"
-        );
-      }
-    }
+        server.broadcast({ type: "got_payment", contract: contract });
+        completeContract(contract);
+      });
+      break;
+    default:
+      contract.message = "Unknown payment token";
+      server.broadcast({ type: "error_contract", contract: contract });
+      break;
   }
 }
 
-// Сохранить контракт в базе данных
-function saveContract(contract) {
-  console.log("save contract: ", contract);
-  contractModel.updateOne({ _id: contract._id }, contract, (err, contract) => {
-    if (err) {
-      console.log(err);
-    }
+function calculateContractPrice(contract, callback) {
+  console.log("complete contract...", contract);
+  let spreads = rates.getSpreads();
+  rates.getRates((btc_price, bip_price, eth_price) => {
+    switch (contract.buy_coin) {
+      case "BTC":
+        btc_price = btc_price / bip_price;
+        const btc_sell = btc_price + btc_price * spreads.btc_spread;
 
-    console.log("completed updating contract: ", contract);
+        contract.send_amount = Math.trunc(
+          (contract.receivedCoins / btc_sell) * 100000000
+        );
+
+        contract.price = btc_sell;
+        break;
+      case "BIP":
+        if (contract.sell_coin == "BTC") {
+          btc_price = btc_price / bip_price;
+          const btc_buy = btc_price - btc_price * spreads.btc_spread;
+
+          contract.send_amount = Math.trunc(
+            (contract.receivedCoins * btc_buy) / 100000000
+          );
+
+          contract.price = btc_buy;
+        } else {
+          if (contract.sell_coin == "ETH") {
+            eth_price = eth_price / eth_price;
+            const eth_buy = eth_price - eth_price * spreads.eth_spread;
+
+            contract.send_amount = Math.trunc(
+              (contract.receivedCoins * eth_buy) / 1000000000000000000
+            );
+
+            contract.price = eth_buy;
+          } else {
+            console.log("не могу посчитать сколько выплатить BIP...");
+          }
+        }
+        break;
+      case "ETH":
+        eth_price = eth_price / bip_price;
+        const eth_buy = eth_price - eth_price * spreads.eth_spread;
+
+        contract.send_amount = contract.receivedCoins / eth_buy;
+        contract.price = eth_buy;
+        break;
+    }
+    console.log("price: ", contract.price, " send amount: ", contract.send_amount, " ", contract.buy_coin);
+    callback(contract);
   });
 }
 
 // Исполнить контракт
 function completeContract(contract) {
   console.log("complete contract...");
-  if (contract.buy_coin == "BTC") {
-    // отправляем BTC
-    rates.getRates((btc_price, bip_price, eth_price) => {
-      btc_price = btc_price / bip_price;
-
-      console.log("btc price: ", btc_price);
-      const btc_sell = btc_price + btc_price * rates.spread.BTC;
-      console.log("btc buy: ", btc_sell);
-
-      contract.send_amount = Math.trunc(
-        (contract.receivedCoins / btc_sell) * 100000000
-      );
-
-      contract.price = btc_sell;
-
+  switch (contract.buy_coin) {
+    case "BTC":
+      // отправляем BTC
       console.log(
         `надо отправить ${contract.send_amount}sat на адрес ${contract.toAddress}`
       );
@@ -256,139 +261,84 @@ function completeContract(contract) {
           saveContract(contract);
         }
       );
-    });
-  } else {
-    if (contract.buy_coin == "BIP") {
-      console.log("sending BIP");
-      rates.getRates((btc_price, bip_price, eth_price) => {
-        if (contract.sell_coin == "BTC") {
-          console.log("считаем сколько BIP нужно выплатить за полученные BTC");
-          btc_price = btc_price / bip_price;
-
-          console.log("btc price: ", btc_price);
-          const btc_buy = btc_price - btc_price * rates.spread.BTC;
-          console.log("btc buy: ", btc_buy);
-
-          contract.send_amount = Math.trunc(
-            (contract.receivedCoins * btc_buy) / 100000000
-          );
-
-          contract.price = btc_buy;
-        } else {
-          if (contract.sell_coin == "ETH") {
-            console.log(
-              "считаем сколько BIP нужно выплатить за полученные ETH"
-            );
-            eth_price = eth_price / eth_price;
-            console.log("eth price: ", eth_price);
-            const eth_buy = eth_price - eth_price * rates.spread.ETH;
-            console.log("eth buy: ", eth_buy);
-
-            contract.send_amount = Math.trunc(
-              (contract.receivedCoins * eth_buy) / 1000000000000000000
-            );
-
-            contract.price = eth_buy;
+      break;
+    case "ETH":
+      console.log(
+        `надо отправить ${contract.send_amount} ETH на адрес ${contract.toAddress}`
+      );
+      contract.state = "sending";
+      saveContract(contract);
+      eth.sendFromReserve(
+        contract.send_amount,
+        contract.toAddress,
+        (result, arg) => {
+          if (result) {
+            console.log("successfuly sent ETH: ", arg);
+            contract.state = "completed";
+            contract.outgoingTx = arg;
+            contract.outgoingTxLink =
+              "https://explorer.minter.network/transactions/" + arg;
+            contract.fee_sat = 0.01; // TODO get real fee
+            server.broadcast({ type: "completed_contract", contract: contract });
           } else {
-            console.log("не могу посчитать сколько выплатить BIP...");
+            console.log("error sending ETH: ", arg);
+            contract.state = "error";
+            contract.message = arg;
+            server.broadcast({ type: "error_contract", contract: contract });
           }
-        }
-
-        console.log("send_amount: ", contract.send_amount);
-        console.log(
-          `надо отправить ${contract.send_amount} BIP на адрес ${contract.toAddress}`
-        );
-        contract.state = "sending";
-        saveContract(contract);
-        minter.sendFromReserve(
-          contract.send_amount,
-          contract.toAddress,
-          (result, arg) => {
-            if (result) {
-              console.log("successfuly sent BIP: ", arg);
-              contract.state = "completed";
-              contract.outgoingTx = arg;
-              contract.outgoingTxLink =
-                "https://explorer.minter.network/transactions/" + arg;
-              contract.fee_sat = 0.01;
-              server.broadcast({
-                type: "completed_contract",
-                contract: contract
-              });
-            } else {
-              console.log("error sending BIP: ", arg);
-              contract.state = "error";
-              contract.message = arg;
-              server.broadcast({ type: "error_contract", contract: contract });
-            }
-            saveContract(contract);
-          }
-        );
-      });
-    } else {
-      if (contract.buy_coin == "ETH") {
-        console.log("sending ETH");
-        rates.getRates((btc_price, bip_price, eth_price) => {
-          eth_price = eth_price / bip_price;
-
-          console.log("eth price: ", eth_price);
-          const eth_buy = eth_price - eth_price * rates.spread.ETH;
-          console.log("eth buy: ", eth_buy);
-
-          contract.send_amount = contract.receivedCoins / eth_buy;
-          contract.price = eth_buy;
-
-          console.log("send_amount: ", contract.send_amount);
-          console.log(
-            `надо отправить ${contract.send_amount} ETH на адрес ${contract.toAddress}`
-          );
-          contract.state = "sending";
           saveContract(contract);
-          eth.sendFromReserve(
-            contract.send_amount,
-            contract.toAddress,
-            (result, arg) => {
-              if (result) {
-                console.log("successfuly sent ETH: ", arg);
-                contract.state = "completed";
-                contract.outgoingTx = arg;
-                contract.outgoingTxLink =
-                  "https://explorer.minter.network/transactions/" + arg;
-                contract.fee_sat = 0.01; // TODO get real fee
-                server.broadcast({ type: "completed_contract", contract });
-              } else {
-                console.log("error sending ETH: ", arg);
-                contract.state = "error";
-                contract.message = arg;
-                server.broadcast({ type: "error_contract", contract });
-              }
-              saveContract(contract);
-            }
-          );
-        });
-      } else {
-        console.log(
-          "не могу исполнить контракт, непонятно что покупать: ",
-          contract.buy_coin
-        );
-      }
-    }
+        }
+      );
+      break;
+    case "BIP":
+      console.log(
+        `надо отправить ${contract.send_amount} BIP на адрес ${contract.toAddress}`
+      );
+      contract.state = "sending";
+      saveContract(contract);
+      minter.sendFromReserve(
+        contract.send_amount,
+        contract.toAddress,
+        (result, arg) => {
+          if (result) {
+            console.log("successfuly sent BIP: ", arg);
+            contract.state = "completed";
+            contract.outgoingTx = arg;
+            contract.outgoingTxLink =
+              "https://explorer.minter.network/transactions/" + arg;
+            contract.fee_sat = 0.01;
+            server.broadcast({
+              type: "completed_contract",
+              contract: contract
+            });
+          } else {
+            console.log("error sending BIP: ", arg);
+            contract.state = "error";
+            contract.message = arg;
+            server.broadcast({ type: "error_contract", contract: contract });
+          }
+          saveContract(contract);
+        }
+      );
+      break;
+    default:
+      console.log("непонятно что покупать: ", contract.buy_coin);
+      contract.message = "Unknown token to buy";
+      server.broadcast({ type: "error_contract", contract: contract });
+      break;
   }
 }
 
-function sendAllBIPToReserve(contract) {
-  console.log(
-    "sending all BIP to reserve account from ",
-    contract.receivingAddress,
-    contract.receivingPrivKey
-  );
-  minter.sendAllToReserve(
-    contract.receivingAddress,
-    contract.receivingPrivKey,
-    result => {
-      console.log("sent all to reserve: ", result);
+// Сохранить контракт в базе данных
+function saveContract(contract) {
+  console.log("save contract: ", contract);
+  contractModel.updateOne({ _id: contract._id }, contract, (err, contract) => {
+    if (err) {
+      console.log(err);
     }
-  );
+
+    console.log("completed updating contract: ", contract);
+  });
 }
 
 // exports.updateContract = (req, res) => {
