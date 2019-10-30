@@ -47,40 +47,43 @@ exports.getAllContracts = (req, res) => {
 exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
   if (_paused) {
+    newContract.message = "Exchange paused on maintenance. Please try again later";
     server.broadcast({ type: "error_contract", contract: newContract });
     return
   }
   console.log("new contract: ", newContract);
   newContract.buy_amount = 0;
-  newContract.btc_usd = rates.btc_price();
-  newContract.eth_usd = rates.eth_price();
-  newContract.bip_usd = rates.bip_price();
+  newContract.rates.btc_usd = rates.btc_price();
+  newContract.rates.eth_usd = rates.eth_price();
+  newContract.rates.bip_usd = rates.bip_price();
+  newContract.spreads = rates.getSpreads();
 
-  if (newContract.sell_coin == "BIP") {
-    console.log("generate BIP address to receive coins");
-    const wallet = minter.generateWallet();
-    console.log("wallet: ", wallet);
-    newContract.receivingAddress = wallet.address;
-    newContract.receivingPrivKey = wallet.priv_key;
-    const priv_key = newContract.receivingPrivKey;
-    newContract.state = "waiting for payment";
+  switch (newContract.sell_coin) {
+    case "BIP":
+      console.log("generate BIP address to receive coins");
+      const wallet = minter.generateWallet();
+      console.log("wallet: ", wallet);
+      newContract.receivingAddress = wallet.address;
+      newContract.receivingPrivKey = wallet.priv_key;
+      const priv_key = newContract.receivingPrivKey;
+      newContract.state = "waiting for payment";
 
-    newContract.save((err, contract) => {
-      if (err) {
-        res.send(err);
-      }
+      newContract.save((err, contract) => {
+        if (err) {
+          res.send(err);
+        }
 
-      console.log("returning new contract: ", contract);
-      newContract.receivingPrivKey = null; // прячем ключ
-      res.json(newContract); // возвращаем без ключа
-      server.broadcast({ type: "new_contract", contract: newContract });
+        console.log("returning new contract: ", contract);
+        newContract.receivingPrivKey = null; // прячем ключ
+        res.json(newContract); // возвращаем без ключа
+        server.broadcast({ type: "new_contract", contract: newContract });
 
-      // восстанавливаем ключ и продолжаем
-      contract.receivingPrivKey = priv_key;
-      startContract(contract);
-    });
-  } else {
-    if (newContract.sell_coin == "BTC") {
+        // восстанавливаем ключ и продолжаем
+        contract.receivingPrivKey = priv_key;
+        startContract(contract);
+      });
+      break;
+    case "BTC":
       console.log("generating new BTC address to receive payment");
       bcoin.generateReserveAddress(input_address => {
         console.log("new address: ", input_address);
@@ -99,32 +102,35 @@ exports.createContract = (req, res) => {
           startContract(contract);
         });
       });
-    } else {
-      if (newContract.sell_coin == "ETH") {
-        console.log("generating new ETH address to receive payment");
-        const eth_wallet = eth.generateWallet();
-        console.log("wallet: ", eth_wallet);
-        newContract.receivingAddress = eth_wallet.address;
-        newContract.receivingPrivKey = eth_wallet.priv_key;
-        const priv_key = newContract.receivingPrivKey;
-        newContract.state = "waiting for payment";
+      break;
+    case "ETH":
+      console.log("generating new ETH address to receive payment");
+      const eth_wallet = eth.generateWallet();
+      console.log("wallet: ", eth_wallet);
+      newContract.receivingAddress = eth_wallet.address;
+      newContract.receivingPrivKey = eth_wallet.priv_key;
+      const priv_key = newContract.receivingPrivKey;
+      newContract.state = "waiting for payment";
 
-        newContract.save((err, contract) => {
-          if (err) {
-            res.send(err);
-          }
+      newContract.save((err, contract) => {
+        if (err) {
+          res.send(err);
+        }
 
-          console.log("returning new contract: ", contract);
-          newContract.receivingPrivKey = null; // прячем ключ
-          res.json(newContract); // возвращаем без ключа
-          server.broadcast({ type: "new_contract", contract: newContract });
+        console.log("returning new contract: ", contract);
+        newContract.receivingPrivKey = null; // прячем ключ
+        res.json(newContract); // возвращаем без ключа
+        server.broadcast({ type: "new_contract", contract: newContract });
 
-          // восстанавливаем ключ и продолжаем
-          contract.receivingPrivKey = priv_key;
-          startContract(contract);
-        });
-      }
-    }
+        // восстанавливаем ключ и продолжаем
+        contract.receivingPrivKey = priv_key;
+        startContract(contract);
+      });
+      break;
+    default:
+      newContract.message = "Unknown payment token";
+      server.broadcast({ type: "error_contract", contract: newContract });
+      break;
   }
 };
 

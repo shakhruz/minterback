@@ -40,6 +40,9 @@ exports.setETHSpread = function (eth_spread) {
   _spread = { BTC: _spread.BTC, ETH: eth_spread, USDT: _spread.USDT }
 }
 
+exports.getSpreads = function () {
+  return { btc_spread: _spread.BTC, eth_spread: _spread.ETH, usdt_spread: _spread.USDT }
+}
 
 // Как часто будем обновлять курсы - 1000 - 1 сек
 const updateRatesInterval = 60 * 1000;

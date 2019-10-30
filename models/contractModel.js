@@ -1,5 +1,4 @@
 // Контракт для обмена
-//
 
 import mongoose, { Schema } from "mongoose";
 
@@ -69,14 +68,20 @@ const ContractScheme = new Schema({
   message: {
     type: String
   },
-  btc_usd: {
-    type: Number
+  rates: {
+    btc_usd: {
+      type: Number
+    },
+    eth_usd: {
+      type: Number
+    },
+    bip_usd: {
+      type: Number
+    }
   },
-  eth_usd: {
-    type: Number
-  },
-  bip_usd: {
-    type: Number
+  spreads: {
+    btc_spread: { type: Number },
+    eth_spread: { type: Number },
   },
   price: {
     type: Number
