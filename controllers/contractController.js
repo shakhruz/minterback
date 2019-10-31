@@ -1,24 +1,28 @@
-// Управление контрактами 
+// Управление контрактами
 import contractModel from "../models/contractModel.js";
 import server from "../server";
 
+// блокчейны
 const minter = require("../minter.js");
 const bcoin = require("../bcoin.js");
-const rates = require("../rates.js");
-const data = require("../data.js");
 const eth = require("../eth.js");
 
-const bot = require('../bot.js')
+// курсы валют
+const rates = require("../rates.js");
+const data = require("../data.js");
+const bot = require("../bot.js");
+var sha256 = require("sha-256-js");
 
-let _paused = false
+// обменник на паузу
+let _paused = false;
 
-exports.paused = function () {
-  return _paused
-}
+exports.paused = function() {
+  return _paused;
+};
 
-exports.setPaused = function (newValue) {
-  _paused = newValue
-}
+exports.setPaused = function(newValue) {
+  _paused = newValue;
+};
 
 // Возвращаем все данные по контракту по id
 exports.getContract = (req, res) => {
@@ -48,16 +52,19 @@ function generateWallet(coin, callback) {
   switch (coin) {
     case "BIP":
       const wallet = minter.generateWallet();
-      callback({ address: wallet.address, private_key: wallet.priv_key })
+      callback({ address: wallet.address, private_key: wallet.priv_key });
       break;
     case "BTC":
       bcoin.generateReserveAddress(input_address => {
-        callback({ address: input_address, private_key: "" })
+        callback({ address: input_address, private_key: "" });
       });
       break;
     case "ETH":
       const eth_wallet = eth.generateWallet();
-      callback({ address: eth_wallet.address, private_key: eth_wallet.priv_key })
+      callback({
+        address: eth_wallet.address,
+        private_key: eth_wallet.priv_key
+      });
       break;
     default:
       console.log("unknown coin " + coin);
@@ -68,16 +75,14 @@ function generateWallet(coin, callback) {
 // Создаем новый контракт на обмен
 exports.createContract = (req, res) => {
   const newContract = new contractModel(req.body);
+  newContract.start_time = new Date();
+
   if (_paused) {
-    newContract.message = "Exchange paused on maintenance. Please try again later";
+    newContract.message =
+      "Exchange paused on maintenance. Please try again later";
     server.broadcast({ type: "error_contract", contract: newContract });
-    return
+    return;
   }
-  newContract.buy_amount = 0;
-  newContract.rates.btc_usd = rates.btc_price();
-  newContract.rates.eth_usd = rates.eth_price();
-  newContract.rates.bip_usd = rates.bip_price();
-  newContract.spreads = rates.getSpreads();
   console.log("new contract: ", newContract);
 
   calculateContractPrice(newContract, contract => {
@@ -85,6 +90,8 @@ exports.createContract = (req, res) => {
       contract.receivingAddress = wallet.address;
       contract.receivingPrivKey = "";
       contract.state = "waiting for payment";
+
+      contract.hash = calculateContractHash(contract);
 
       contract.save((err, contract) => {
         if (err) {
@@ -99,8 +106,8 @@ exports.createContract = (req, res) => {
         contract.receivingPrivKey = wallet.private_key;
         startContract(contract);
       });
-    })
-  })
+    });
+  });
 };
 
 // Ждем платеж по контракту чтобы начать его исполнение
@@ -174,10 +181,16 @@ function startContract(contract) {
   }
 }
 
+// Рассчитываем стоимость покупки контракта
 function calculateContractPrice(contract, callback) {
   console.log("complete contract...", contract);
   let spreads = rates.getSpreads();
   rates.getRates((btc_price, bip_price, eth_price) => {
+    contract.rates.btc_usd = rates.btc_price();
+    contract.rates.eth_usd = rates.eth_price();
+    contract.rates.bip_usd = rates.bip_price();
+    contract.spreads = rates.getSpreads();
+
     switch (contract.buy_coin) {
       case "BTC":
         btc_price = btc_price / bip_price;
@@ -222,7 +235,14 @@ function calculateContractPrice(contract, callback) {
         contract.price = eth_buy;
         break;
     }
-    console.log("price: ", contract.price, " send amount: ", contract.send_amount, " ", contract.buy_coin);
+    console.log(
+      "price: ",
+      contract.price,
+      " send amount: ",
+      contract.send_amount,
+      " ",
+      contract.buy_coin
+    );
     callback(contract);
   });
 }
@@ -242,6 +262,7 @@ function completeContract(contract) {
         contract.send_amount,
         contract.toAddress,
         (result, arg) => {
+          сontract.end_time = new Date();
           if (result) {
             console.log("successfuly sent bcoin: ", arg.hash);
             contract.state = "completed";
@@ -272,6 +293,7 @@ function completeContract(contract) {
         contract.send_amount,
         contract.toAddress,
         (result, arg) => {
+          сontract.end_time = new Date();
           if (result) {
             console.log("successfuly sent ETH: ", arg);
             contract.state = "completed";
@@ -279,7 +301,10 @@ function completeContract(contract) {
             contract.outgoingTxLink =
               "https://explorer.minter.network/transactions/" + arg;
             contract.fee_sat = 0.01; // TODO get real fee
-            server.broadcast({ type: "completed_contract", contract: contract });
+            server.broadcast({
+              type: "completed_contract",
+              contract: contract
+            });
           } else {
             console.log("error sending ETH: ", arg);
             contract.state = "error";
@@ -300,6 +325,7 @@ function completeContract(contract) {
         contract.send_amount,
         contract.toAddress,
         (result, arg) => {
+          сontract.end_time = new Date();
           if (result) {
             console.log("successfuly sent BIP: ", arg);
             contract.state = "completed";
@@ -324,6 +350,7 @@ function completeContract(contract) {
     default:
       console.log("непонятно что покупать: ", contract.buy_coin);
       contract.message = "Unknown token to buy";
+      сontract.end_time = new Date();
       server.broadcast({ type: "error_contract", contract: contract });
       break;
   }
@@ -339,6 +366,18 @@ function saveContract(contract) {
 
     console.log("completed updating contract: ", contract);
   });
+}
+
+// Рассчитывает хэш контракта по его данным
+function calculateContractHash(contract) {
+  let data =
+    contract.sell_coin +
+    contract.buy_coin +
+    contract.start_time +
+    contract.sell_amount +
+    contract.dest_address +
+    contract.receivingAddress;
+  return sha256(data);
 }
 
 // exports.updateContract = (req, res) => {

@@ -8,7 +8,6 @@ console.log(`Listening on port ${port}`);
 const bot = require('./bot.js')
 
 const WebSocketServer = require("ws").Server;
-//const wss = new WebSocketServer({ server: server });
 const wss = new WebSocketServer({ port: 9090 });
 
 wss.on("connection", ws => {

@@ -10,9 +10,13 @@ const ContractScheme = new Schema({
   buy_coin: {
     type: String
   },
-  date: {
+  start_time: {
     type: Date,
     default: new Date()
+  },
+  end_time: {
+    type: Date,
+    default: null
   },
   sell_amount: {
     type: Number,
@@ -81,7 +85,7 @@ const ContractScheme = new Schema({
   },
   spreads: {
     btc_spread: { type: Number },
-    eth_spread: { type: Number },
+    eth_spread: { type: Number }
   },
   price: {
     type: Number
