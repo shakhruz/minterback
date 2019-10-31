@@ -88,17 +88,18 @@ exports.createContract = (req, res) => {
   calculateContractPrice(newContract, contract => {
     generateWallet(contract.sell_coin, wallet => {
       contract.receivingAddress = wallet.address;
-      contract.receivingPrivKey = "";
       contract.state = "waiting for payment";
 
       contract.hash = calculateContractHash(contract);
 
-      contract.save((err, contract) => {
+      contract.save((err, saved_contract) => {
         if (err) {
           res.send(err);
+          console.log("error saving to db: ", err);
+          bot.sendError("error saving to db: ", err);
+          return;
         }
 
-        contract.receivingPrivKey = null; // прячем ключ
         res.json(contract); // возвращаем без ключа
         server.broadcast({ type: "new_contract", contract: contract });
 
@@ -183,7 +184,7 @@ function startContract(contract) {
 
 // Рассчитываем стоимость покупки контракта
 function calculateContractPrice(contract, callback) {
-  console.log("complete contract...", contract);
+  console.log("calculate contract...", contract);
   let spreads = rates.getSpreads();
   rates.getRates((btc_price, bip_price, eth_price) => {
     contract.rates.btc_usd = rates.btc_price();
@@ -196,8 +197,8 @@ function calculateContractPrice(contract, callback) {
         btc_price = btc_price / bip_price;
         const btc_sell = btc_price + btc_price * spreads.btc_spread;
 
-        contract.send_amount = Math.trunc(
-          (contract.receivedCoins / btc_sell) * 100000000
+        contract.calc_amount = Math.trunc(
+          (contract.sell_amount / btc_sell) * 100000000
         );
 
         contract.price = btc_sell;
@@ -207,8 +208,8 @@ function calculateContractPrice(contract, callback) {
           btc_price = btc_price / bip_price;
           const btc_buy = btc_price - btc_price * spreads.btc_spread;
 
-          contract.send_amount = Math.trunc(
-            (contract.receivedCoins * btc_buy) / 100000000
+          contract.calc_amount = Math.trunc(
+            (contract.sell_amount * btc_buy) / 100000000
           );
 
           contract.price = btc_buy;
@@ -217,8 +218,8 @@ function calculateContractPrice(contract, callback) {
             eth_price = eth_price / eth_price;
             const eth_buy = eth_price - eth_price * spreads.eth_spread;
 
-            contract.send_amount = Math.trunc(
-              (contract.receivedCoins * eth_buy) / 1000000000000000000
+            contract.calc_amount = Math.trunc(
+              (contract.sell_amount * eth_buy) / 1000000000000000000
             );
 
             contract.price = eth_buy;
@@ -231,25 +232,57 @@ function calculateContractPrice(contract, callback) {
         eth_price = eth_price / bip_price;
         const eth_buy = eth_price - eth_price * spreads.eth_spread;
 
-        contract.send_amount = contract.receivedCoins / eth_buy;
+        contract.calc_amount = contract.sell_amount / eth_buy;
         contract.price = eth_buy;
         break;
     }
     console.log(
       "price: ",
       contract.price,
-      " send amount: ",
-      contract.send_amount,
-      " ",
-      contract.buy_coin
+      " calc amount: ",
+      contract.calc_amount
     );
     callback(contract);
   });
 }
 
+// Рассчитываем стоимость покупки контракта
+function amountToSend(contract) {
+  console.log("calculate final amount to send on contract...", contract);
+  switch (contract.buy_coin) {
+    case "BTC":
+      contract.send_amount = Math.trunc(
+        (contract.receivedCoins / contract.price) * 100000000
+      );
+      break;
+    case "BIP":
+      if (contract.sell_coin == "BTC") {
+        contract.send_amount = Math.trunc(
+          (contract.receivedCoins * contract.price) / 100000000
+        );
+      } else {
+        if (contract.sell_coin == "ETH") {
+          contract.send_amount = Math.trunc(
+            (contract.receivedCoins * contract.price) / 1000000000000000000
+          );
+        } else {
+          console.log("не могу посчитать сколько выплатить BIP...");
+        }
+      }
+      break;
+    case "ETH":
+      contract.send_amount = contract.sell_amount / contract.price;
+      break;
+  }
+  console.log(" send amount: ", contract.send_amount, " ", contract.buy_coin);
+  return contract.send_amount;
+}
+
 // Исполнить контракт
 function completeContract(contract) {
-  console.log("complete contract...");
+  contract.send_amount = amountToSend(contract);
+  console.log("complete contract...", contract);
+
   switch (contract.buy_coin) {
     case "BTC":
       // отправляем BTC

@@ -23,8 +23,10 @@ const ContractScheme = new Schema({
     required: ""
   },
   buy_amount: {
-    type: Number,
-    required: ""
+    type: Number
+  },
+  calc_amount: {
+    type: Number
   },
   send_amount: {
     type: Number
@@ -36,7 +38,8 @@ const ContractScheme = new Schema({
     type: String
   },
   receivingPrivKey: {
-    type: String
+    type: String,
+    default: ""
   },
   receivedCoins: {
     type: Number
