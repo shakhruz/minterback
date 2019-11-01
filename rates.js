@@ -19,30 +19,34 @@ let _eth_usd = 0;
 
 let auto_update = true;
 
-exports.setAutoUpdate = function (newValue) {
-  auto_update = newValue
-}
+exports.setAutoUpdate = function(newValue) {
+  auto_update = newValue;
+};
 
-exports.setBIPPrice = function (newPrice) {
-  console.log("set bip price to: ", newPrice)
-  _bip_usd = newPrice
-}
+exports.setBIPPrice = function(newPrice) {
+  console.log("set bip price to: ", newPrice);
+  _bip_usd = newPrice;
+};
 
-exports.setSpread = function (btc_spread, eth_spread) {
-  _spread = { BTC: btc_spread, ETH: eth_spread, USDT: _spread.USDT }
-}
+exports.setSpread = function(btc_spread, eth_spread) {
+  _spread = { BTC: btc_spread, ETH: eth_spread, USDT: _spread.USDT };
+};
 
-exports.setBTCSpread = function (btc_spread) {
-  _spread = { BTC: btc_spread, ETH: _spread.ETH, USDT: _spread.USDT }
-}
+exports.setBTCSpread = function(btc_spread) {
+  _spread = { BTC: btc_spread, ETH: _spread.ETH, USDT: _spread.USDT };
+};
 
-exports.setETHSpread = function (eth_spread) {
-  _spread = { BTC: _spread.BTC, ETH: eth_spread, USDT: _spread.USDT }
-}
+exports.setETHSpread = function(eth_spread) {
+  _spread = { BTC: _spread.BTC, ETH: eth_spread, USDT: _spread.USDT };
+};
 
-exports.getSpreads = function () {
-  return { btc_spread: _spread.BTC, eth_spread: _spread.ETH, usdt_spread: _spread.USDT }
-}
+exports.getSpreads = function() {
+  return {
+    btc_spread: _spread.BTC,
+    eth_spread: _spread.ETH,
+    usdt_spread: _spread.USDT
+  };
+};
 
 // Как часто будем обновлять курсы - 1000 - 1 сек
 const updateRatesInterval = 60 * 1000;
@@ -77,9 +81,9 @@ function updateRates(callback) {
     });
 }
 
-exports.getBIPPrices = function () {
+exports.getBIPPrices = function() {
   return calcBIPPrices();
-}
+};
 
 function calcBIPPrices() {
   const btc_price = _btc_usd / _bip_usd;
@@ -117,11 +121,11 @@ function calcBIPPrices() {
       sell: usdt_sell,
       spread: _spread.USDT
     }
-  }
+  };
 }
 
 function broadcastBipPrices() {
-  const bipPrices = calcBIPPrices()
+  const bipPrices = calcBIPPrices();
   server.broadcast(bipPrices);
 }
 
@@ -154,29 +158,29 @@ setInterval(() => {
 }, updateRatesInterval);
 
 // Цена BIP/USD
-exports.bip_price = function () {
+exports.bip_price = function() {
   return _bip_usd;
 };
 
 // Цена BTC/USD
-exports.btc_price = function () {
+exports.btc_price = function() {
   return _btc_usd;
 };
 
 // Цена BTC/USD
-exports.eth_price = function () {
+exports.eth_price = function() {
   return _eth_usd;
 };
 
 // Обновить все курсы
-exports.getRates = function (callback) {
+exports.getRates = function(callback) {
   updateRates(callback);
 };
 
-exports.getUSDPrices = function () {
+exports.getUSDPrices = function() {
   return {
     btc_usd: _btc_usd,
     bip_usd: _bip_usd,
     eth_usd: _eth_usd
   };
-}
+};
