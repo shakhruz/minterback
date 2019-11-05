@@ -117,7 +117,7 @@ function startContract(contract) {
   console.log("process contract: ", contract);
   switch (contract.sell_coin) {
     case "BIP":
-      minter.waitForBIPPayment(contract.receivingAddress, trx => {
+      minter.waitForBIPPayment(contract.receivingAddress, 1, trx => {
         if (trx) {
           console.log("got BIP payment: ", trx);
           contract.receivedCoins = trx.data.value;
@@ -137,6 +137,12 @@ function startContract(contract) {
 
           server.broadcast({ type: "got_payment", contract: contract });
           completeContract(contract);
+        } else {
+          console.log("timeout waiting for BIP payment");
+          contract.state = "expired";
+          contract.message = "Waiting time expired";
+          saveContract(contract);
+          server.broadcast({ type: "expired", contract: contract });
         }
       });
       break;
@@ -145,35 +151,53 @@ function startContract(contract) {
         "now wait for BTC payment to address ",
         contract.receivingAddress
       );
-      bcoin.waitForPayment(
-        data.BTCReserveAccountName,
-        contract.receivingAddress,
-        (value, details) => {
-          console.log("got BTC payment: ", details, "value: ", value);
-          contract.state = "payment received";
-          contract.receivedCoins = value;
-          contract.fromAddress = details.inputs[0].address;
-          contract.incomingTx = details.hash;
-          saveContract(contract);
-          server.broadcast({ type: "got_payment", contract: contract });
-          completeContract(contract);
-        }
-      );
+      // bcoin.waitForPayment(
+      //   data.BTCReserveAccountName,
+      //   contract.receivingAddress,
+      //   (value, details) => {
+      //     console.log("got BTC payment: ", details, "value: ", value);
+      //     contract.state = "payment received";
+      //     contract.receivedCoins = value;
+      //     contract.fromAddress = details.inputs[0].address;
+      //     contract.incomingTx = details.hash;
+      //     saveContract(contract);
+      //     server.broadcast({ type: "got_payment", contract: contract });
+      //     completeContract(contract);
+      //   }
+      // );
+      bcoin.addWatchAddress(contract.receivingAddress, (value, details) => {
+        console.log("got BTC payment: ", details, "value: ", value);
+        contract.state = "payment received";
+        contract.receivedCoins = value;
+        contract.fromAddress = details.inputs[0].address;
+        contract.incomingTx = details.hash;
+        saveContract(contract);
+        server.broadcast({ type: "got_payment", contract: contract });
+        completeContract(contract);
+      });
       break;
     case "ETH":
       console.log("now wait for ETH payment...");
-      eth.waitForPayment(contract.receivingAddress, balance => {
-        console.log("got ETH payment: ", balance);
-        contract.receivedCoins = balance;
-        contract.state = "payment received";
-        contract.fromAddress = "";
-        contract.incomingTx = "";
-        saveContract(contract);
-        eth.sendAllToReserve(contract.receivingPrivKey, () => {
-          console.log("sent to reserve");
-        });
-        server.broadcast({ type: "got_payment", contract: contract });
-        completeContract(contract);
+      eth.waitForPayment(contract.receivingAddress, 60, balance => {
+        if (balance) {
+          console.log("got ETH payment: ", balance);
+          contract.receivedCoins = balance;
+          contract.state = "payment received";
+          contract.fromAddress = "";
+          contract.incomingTx = "";
+          saveContract(contract);
+          eth.sendAllToReserve(contract.receivingPrivKey, () => {
+            console.log("sent to reserve");
+          });
+          server.broadcast({ type: "got_payment", contract: contract });
+          completeContract(contract);
+        } else {
+          console.log("timeout waiting for BIP payment");
+          contract.state = "expired";
+          contract.message = "Waiting time expired";
+          saveContract(contract);
+          server.broadcast({ type: "expired", contract: contract });
+        }
       });
       break;
     default:
